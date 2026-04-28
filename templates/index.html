@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}首页 - 高考错题复习助手{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>欢迎回来</h1>
+    <p>这里有你的错题记录和薄弱环节诊断，继续加油！</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ exams|length }}</div>
+        <div class="stat-label">已录入考试</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ recent_questions|length }}</div>
+        <div class="stat-label">最近题目</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ subjects|length }}</div>
+        <div class="stat-label">学科覆盖</div>
+    </div>
+</div>
+
+<div class="home-grid">
+    <div class="home-card">
+        <h2>📝 快速操作</h2>
+        <div class="action-links">
+            <a href="{{ url_for('questions.create') }}" class="btn btn-primary">录入新题目</a>
+            <a href="{{ url_for('exams.list_exams') }}" class="btn btn-secondary">管理考试</a>
+            <a href="{{ url_for('questions.list_questions') }}" class="btn btn-secondary">浏览错题</a>
+        </div>
+    </div>
+
+    <div class="home-card">
+        <h2>📋 学科目录</h2>
+        <div class="subject-grid">
+            {% for s in subjects %}
+            <a href="{{ url_for('questions.list_questions', subject_id=s.id) }}" class="subject-tag">
+                {{ s.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if recent_questions %}
+<div class="home-card">
+    <h2>🕐 最近录入的题目</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>学科</th>
+                <th>考试</th>
+                <th>题号</th>
+                <th>录入时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in recent_questions %}
+            <tr>
+                <td>{{ q.subject_name }}</td>
+                <td>{{ q.exam_name }}</td>
+                <td>第 {{ q.question_number }} 题</td>
+                <td>{{ q.created_at[:10] if q.created_at }}</td>
+                <td><a href="{{ url_for('questions.detail', question_id=q.id) }}">查看</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

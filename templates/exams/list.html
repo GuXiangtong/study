@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}考试管理{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>考试管理</h1>
+    <p>管理已录入的考试，按学科和日期组织。</p>
+</div>
+
+<div class="card">
+    <h2>创建新考试</h2>
+    <form method="POST" action="{{ url_for('exams.create') }}" class="inline-form">
+        <select name="subject_id" required>
+            <option value="">选择学科</option>
+            {% for s in subjects %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="name" placeholder="考试名称，如：高二下期中" required>
+        <input type="date" name="exam_date" placeholder="考试日期（可选）">
+        <button type="submit" class="btn btn-primary">创建</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>考试列表</h2>
+    {% if exams %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>学科</th>
+                <th>考试名称</th>
+                <th>日期</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in exams %}
+            <tr>
+                <td>{{ e.subject_name }}</td>
+                <td>{{ e.name }}</td>
+                <td>{{ e.exam_date or '-' }}</td>
+                <td>{{ e.created_at[:10] if e.created_at else '-' }}</td>
+                <td>
+                    <a href="{{ url_for('questions.list_questions', exam_id=e.id) }}" class="btn btn-small">查看题目</a>
+                    <form method="POST" action="{{ url_for('exams.delete', exam_id=e.id) }}" style="display:inline" onsubmit="return confirm('删除考试将同时删除其下所有题目，确定？')">
+                        <button type="submit" class="btn btn-danger btn-small">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">还没有创建任何考试，请先创建考试再录入题目。</p>
+    {% endif %}
+</div>
+{% endblock %}

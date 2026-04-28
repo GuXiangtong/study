@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}题目详情 - 第{{ question.question_number }}题{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ question.subject_name }} · {{ question.exam_name }} · 第 {{ question.question_number }} 题</h1>
+    <div class="header-actions">
+        <form method="POST" action="{{ url_for('analysis.run_analysis', question_id=question.id) }}" style="display:inline">
+            <button type="submit" class="btn btn-primary" onclick="this.form.submit(); this.disabled=true; this.textContent='分析中...'">🔍 分析错因</button>
+        </form>
+        <a href="{{ url_for('questions.edit', question_id=question.id) }}" class="btn btn-secondary">编辑</a>
+        <form method="POST" action="{{ url_for('questions.delete', question_id=question.id) }}" style="display:inline" onsubmit="return confirm('确定删除此题及其所有子问题和分析记录？')">
+            <button type="submit" class="btn btn-danger">删除</button>
+        </form>
+        <a href="{{ url_for('questions.list_questions') }}" class="btn btn-secondary">返回列表</a>
+    </div>
+</div>
+
+{% if question.stem %}
+<div class="card">
+    <h2>题目内容</h2>
+    <div class="stem-content">{{ question.stem }}</div>
+</div>
+{% endif %}
+
+{% if question.image_path %}
+<div class="card">
+    <h2>题目图片</h2>
+    <img src="{{ url_for('serve_image', subject=question.subject_name, exam=question.exam_name, filename=question.image_path.split('/')[-1]) }}" class="question-image" alt="题目图片">
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>子问题</h2>
+    {% if sub_questions %}
+    <div class="sub-questions-list">
+        {% for sq in sub_questions %}
+        <div class="sub-question-detail">
+            <h3>子问题 {{ sq.label }}</h3>
+            {% if sq.content %}
+            <p class="sq-content">{{ sq.content }}</p>
+            {% endif %}
+
+            <div class="sq-info-grid">
+                <div class="sq-field">
+                    <span class="sq-label">正确答案：</span>
+                    <span class="sq-value correct-answer">{{ sq.correct_answer or '（未填写）' }}</span>
+                </div>
+                <div class="sq-field">
+                    <span class="sq-label">错误答案：</span>
+                    <span class="sq-value wrong-answer">{{ sq.student_answer or '（未填写）' }}</span>
+                </div>
+                <div class="sq-field">
+                    <span class="sq-label">错误类型：</span>
+                    <span class="sq-value">
+                        {% if sq.error_type %}
+                        <span class="badge badge-error">{{ sq.error_type }}</span>
+                        {% else %}
+                        （未标注）
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="sq-field full-width">
+                    <span class="sq-label">出错原因：</span>
+                    <span class="sq-value">{{ sq.error_reason or '（未填写）' }}</span>
+                </div>
+            </div>
+
+            <div class="sq-actions">
+                <button type="button" class="btn btn-secondary" onclick="toggleEditForm({{ sq.id }})">✏️ 编辑</button>
+
+                <form method="POST" action="{{ url_for('questions.delete_sub', sub_question_id=sq.id) }}" style="display:inline" onsubmit="return confirm('确定删除此子问题？')">
+                    <button type="submit" class="btn btn-danger">🗑️ 删除</button>
+                </form>
+            </div>
+
+            <div id="edit-form-{{ sq.id }}" class="edit-form" style="display:none">
+                <form method="POST" action="{{ url_for('questions.update_sub', sub_question_id=sq.id) }}">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>正确答案</label>
+                            <textarea name="correct_answer" rows="3">{{ sq.correct_answer or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>学生错误答案</label>
+                            <textarea name="student_answer" rows="3">{{ sq.student_answer or '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>出错原因</label>
+                            <textarea name="error_reason" rows="3">{{ sq.error_reason or '' }}</textarea>
+                        </div>
+                        <div class="form-group" style="flex:0 0 180px">
+                            <label>错误类型</label>
+                            <select name="error_type">
+                                <option value="">请选择</option>
+                                <option value="概念不清" {% if sq.error_type == '概念不清' %}selected{% endif %}>概念不清</option>
+                                <option value="计算失误" {% if sq.error_type == '计算失误' %}selected{% endif %}>计算失误</option>
+                                <option value="思路缺失" {% if sq.error_type == '思路缺失' %}selected{% endif %}>思路缺失</option>
+                                <option value="粗心" {% if sq.error_type == '粗心' %}selected{% endif %}>粗心</option>
+                            </select>
+                        </div>
+                    </div>
+                    <input type="hidden" name="label" value="{{ sq.label }}">
+                    <input type="hidden" name="content" value="{{ sq.content or '' }}">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" class="btn btn-secondary" onclick="toggleEditForm({{ sq.id }})">取消</button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">还没有子问题。请添加子问题来记录错题信息。</p>
+    {% endif %}
+
+    {% if analyses %}
+    <div class="card" style="margin-top:16px">
+        <h2>📋 历史分析记录</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>分析时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in analyses %}
+                <tr>
+                    <td>{{ a.created_at }}</td>
+                    <td><a href="{{ url_for('analysis.view_analysis', analysis_id=a.id) }}" class="btn btn-small">查看报告</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="add-sub-form" style="margin-top:20px">
+        <h3>添加子问题</h3>
+        <form method="POST" action="{{ url_for('questions.add_sub_question', question_id=question.id) }}">
+            <div class="form-row">
+                <div class="form-group" style="flex:0 0 100px">
+                    <label>标号</label>
+                    <input type="text" name="label" placeholder="(1)" required>
+                </div>
+                <div class="form-group" style="flex:1">
+                    <label>子问题内容</label>
+                    <input type="text" name="content" placeholder="子问题文字描述（可选）">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>正确答案</label>
+                    <textarea name="correct_answer" rows="2" placeholder="正确答案"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>错误答案</label>
+                    <textarea name="student_answer" rows="2" placeholder="学生错误答案"></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>出错原因</label>
+                    <textarea name="error_reason" rows="2" placeholder="为何做错？"></textarea>
+                </div>
+                <div class="form-group" style="flex:0 0 180px">
+                    <label>错误类型</label>
+                    <select name="error_type">
+                        <option value="">请选择</option>
+                        <option value="概念不清">概念不清</option>
+                        <option value="计算失误">计算失误</option>
+                        <option value="思路缺失">思路缺失</option>
+                        <option value="粗心">粗心</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">添加子问题</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEditForm(id) {
+    var form = document.getElementById('edit-form-' + id);
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

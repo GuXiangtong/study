@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}错题分析报告{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📋 错题分析报告</h1>
+    <p>学科：{{ analysis.subject_name }} | 考试：{{ analysis.exam_name }} | 题号：{{ analysis.question_number }}{{ analysis.sub_label or '' }}</p>
+    <p class="analysis-date">分析时间：{{ analysis.created_at }}</p>
+</div>
+
+{% if step1 %}
+<div class="card">
+    <h2>{{ step1.title }}</h2>
+    <div class="analysis-section">
+        <div class="field-item">
+            <strong>题目简述：</strong>
+            <p>{{ step1.question_summary }}</p>
+        </div>
+        <div class="field-item">
+            <strong>学生自述错误原因：</strong>
+            <p>{{ step1.student_error_reason }}</p>
+        </div>
+        <div class="field-item">
+            <strong>AI 分析：</strong>
+            <div class="analysis-text">{{ step1.ai_analysis | replace('\n', '<br>') | safe }}</div>
+        </div>
+        <div class="field-item">
+            <strong>关联知识点：</strong>
+            <p>{{ step1.knowledge_points }}</p>
+        </div>
+        <div class="field-item">
+            <strong>所属考纲板块：</strong>
+            <p>{{ step1.syllabus_section }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if step2 %}
+<div class="card">
+    <h2>{{ step2.title }}</h2>
+    <div class="analysis-section">
+        <div class="analysis-text">{{ step2.weakness_analysis | replace('\n', '<br>') | safe }}</div>
+    </div>
+</div>
+{% endif %}
+
+{% if step3 %}
+<div class="card">
+    <h2>{{ step3.title }}</h2>
+    {% if step3.note %}
+    <p class="warning-note">{{ step3.note }}</p>
+    {% endif %}
+    <div class="steps-list">
+        {% for s in step3.steps %}
+        <div class="step-item">
+            <h3>{{ loop.index }}. {{ s.name }}</h3>
+            <div class="analysis-text">{{ s.guidance | replace('\n', '<br>') | safe }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if step4 %}
+<div class="card">
+    <h2>{{ step4.title }}</h2>
+    <p>{{ step4.description }}</p>
+
+    {% if step4.exercises and step4.exercises|length > 0 %}
+        {% for ex in step4.exercises %}
+        <div class="practice-question">
+            <h3>
+                {% if ex.difficulty == '基础题' %}🟢 基础题
+                {% elif ex.difficulty == '提高题' %}🟡 提高题
+                {% elif ex.difficulty == '难题' %}🔴 难题
+                {% else %}📌 {{ ex.difficulty }}{% endif %}
+            </h3>
+            <div class="practice-content">{{ ex.content }}</div>
+            {% if ex.solution_steps %}
+            <details class="solution-details">
+                <summary>💡 解题思路</summary>
+                <div class="practice-hint">{{ ex.solution_steps }}</div>
+            </details>
+            {% endif %}
+            {% if ex.answer %}
+            <details class="answer-details">
+                <summary>✅ 参考答案</summary>
+                <div class="practice-answer">{{ ex.answer }}</div>
+            </details>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% elif step4.levels %}
+    <ul>
+        {% for lv in step4.levels %}
+        <li><strong>{{ lv.difficulty }}</strong>：{{ lv.target }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="form-actions">
+    <a href="javascript:history.back()" class="btn btn-secondary">返回</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+MathJax.typesetPromise();
+</script>
+{% endblock %}

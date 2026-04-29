@@ -10,6 +10,9 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 init_db(app)
 
+from services.paper_service import cleanup_old_tasks
+cleanup_old_tasks()
+
 
 @app.route('/')
 def index():
@@ -32,11 +35,15 @@ from routes.exams import exams_bp
 from routes.questions import questions_bp
 from routes.analysis import analysis_bp
 from routes.practice import practice_bp
+from routes.paper import paper_bp
+from routes.settings import settings_bp
 
 app.register_blueprint(exams_bp)
 app.register_blueprint(questions_bp)
 app.register_blueprint(analysis_bp)
 app.register_blueprint(practice_bp)
+app.register_blueprint(paper_bp)
+app.register_blueprint(settings_bp)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

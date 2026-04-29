@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}审核识别结果 - 试卷导入{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📋 审核识别结果</h1>
+        <p>
+            学科：<strong>{{ subject_name }}</strong> |
+            考试：<strong>{{ exam_name }}</strong> |
+            文件：<strong>{{ result.original_filename }}</strong>（{{ result.page_count }} 页） |
+            识别到 <strong>{{ result.question_count }}</strong> 道题
+        </p>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('confirmForm').submit()">
+            确认导入选中题目
+        </button>
+        <a href="{{ url_for('paper.upload') }}" class="btn btn-secondary">放弃重传</a>
+    </div>
+</div>
+
+{% if result.errors %}
+<div class="flash-messages">
+    {% for err in result.errors %}
+    <div class="flash flash-error">{{ err }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if result.questions %}
+<form id="confirmForm" method="POST" action="{{ url_for('paper.confirm', task_id=task_id) }}">
+    <div class="paper-review-toolbar" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+        <button type="button" class="btn btn-small btn-primary" onclick="selectAll()">全选</button>
+        <button type="button" class="btn btn-small btn-secondary" onclick="deselectAll()">取消全选</button>
+        <span style="color:var(--text-muted);font-size:14px;">
+            已选择 <strong id="selectedCount">{{ result.question_count }}</strong> / {{ result.question_count }} 道
+        </span>
+    </div>
+
+    <div class="paper-questions-grid">
+        {% for q in result.questions %}
+        {% set idx = loop.index0 %}
+        <div class="paper-question-card" id="qcard-{{ idx }}">
+            <div class="pq-header">
+                <label class="pq-checkbox">
+                    <input type="checkbox" name="selected" value="{{ idx }}" checked
+                           onchange="updateCount()">
+                </label>
+                <div class="pq-number">
+                    <span>第 {{ q.page }} 页</span>
+                    <input type="text" name="question_number" value="{{ q.question_number }}"
+                           class="pq-number-input" style="width:60px;text-align:center;">
+                </div>
+            </div>
+
+            {% if q.image %}
+            <div class="pq-image">
+                <img src="{{ url_for('paper.serve_temp', task_id=task_id, subdir='questions', filename=q.image) }}"
+                     alt="第 {{ q.question_number }} 题" loading="lazy">
+            </div>
+            {% endif %}
+
+            <div class="pq-content">
+                <textarea name="stem" rows="4" class="pq-stem-input"
+                          placeholder="题目内容（可编辑）">{{ q.content }}</textarea>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="form-actions" style="margin-top:24px;">
+        <button type="submit" class="btn btn-primary">确认导入选中题目</button>
+        <a href="{{ url_for('paper.upload') }}" class="btn btn-secondary">放弃重传</a>
+    </div>
+</form>
+{% else %}
+<div class="empty-state">
+    <p>未能识别到任何题目。</p>
+    <p>可能原因：图片不够清晰、试卷排版特殊、或页面空白。</p>
+    <a href="{{ url_for('paper.upload') }}" class="btn btn-primary">重新上传</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateCount() {
+    const checked = document.querySelectorAll('input[name="selected"]:checked').length;
+    const total = document.querySelectorAll('input[name="selected"]').length;
+    document.getElementById('selectedCount').textContent = checked;
+}
+
+function selectAll() {
+    document.querySelectorAll('input[name="selected"]').forEach(cb => cb.checked = true);
+    updateCount();
+}
+
+function deselectAll() {
+    document.querySelectorAll('input[name="selected"]').forEach(cb => cb.checked = false);
+    updateCount();
+}
+</script>
+{% endblock %}

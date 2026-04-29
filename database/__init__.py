@@ -82,6 +82,12 @@ def init_db():
             knowledge_points    TEXT,
             created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key         TEXT PRIMARY KEY,
+            value       TEXT    NOT NULL,
+            updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     ''')
 
     for subj in SUBJECTS:
@@ -96,3 +102,13 @@ def init_app(app):
     if not os.path.exists(DATABASE_PATH):
         with app.app_context():
             init_db()
+    else:
+        # Ensure new tables exist on existing databases
+        with app.app_context():
+            db = get_db()
+            db.execute('''CREATE TABLE IF NOT EXISTS settings (
+                key         TEXT PRIMARY KEY,
+                value       TEXT    NOT NULL,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )''')
+            db.commit()

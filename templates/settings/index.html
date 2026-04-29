@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}设置 - 高考错题复习助手{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>设置</h1>
+    <p>配置题目识别和分析的 AI 方式</p>
+</div>
+
+<form method="POST" class="settings-form">
+    <div class="card">
+        <h2>题目识别</h2>
+        <p class="form-hint" style="margin-bottom:12px;">上传试卷时，用哪种方式识别和拆分题目。</p>
+        {% for key, label in recognition_methods.items() %}
+        <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+            <input type="radio" name="recognition_method" value="{{ key }}"
+                   {% if current.get('recognition_method', 'paddleocr_deepseek') == key %}checked{% endif %}>
+            <div>
+                <strong>{{ label }}</strong>
+                {% if key == 'paddleocr_deepseek' %}
+                <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
+                {% else %}
+                <span class="badge" style="background:#f1f5f9;color:var(--text-muted);margin-left:8px;">即将支持</span>
+                {% endif %}
+            </div>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="card">
+        <h2>题目分析</h2>
+        <p class="form-hint" style="margin-bottom:12px;">点击「分析」按钮时，用哪种 AI 进行四步错题分析。</p>
+        {% for key, label in analysis_methods.items() %}
+        <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+            <input type="radio" name="analysis_method" value="{{ key }}"
+                   {% if current.get('analysis_method', 'deepseek') == key %}checked{% endif %}>
+            <div>
+                <strong>{{ label }}</strong>
+                {% if key == 'deepseek' %}
+                <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
+                {% else %}
+                <span class="badge" style="background:#f1f5f9;color:var(--text-muted);margin-left:8px;">即将支持</span>
+                {% endif %}
+            </div>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">保存设置</button>
+    </div>
+</form>
+{% endblock %}

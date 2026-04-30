@@ -3,10 +3,11 @@ import shutil
 import uuid
 
 from flask import (Blueprint, flash, redirect, render_template, request,
-                   send_from_directory, url_for)
+                   send_from_directory, url_for, session)
 
 from config import BASE_DIR, PAPER_TEMP_DIR
-from models.exam import create_exam, get_exam
+from utils.decorators import login_required
+from models.exam import create_exam, get_exam, get_all_exams
 from models.question import create_question
 from models.subject import get_all_subjects
 from services.paper_service import (cleanup_old_tasks, cleanup_task,
@@ -16,11 +17,13 @@ paper_bp = Blueprint('paper', __name__)
 
 
 @paper_bp.route('/paper/upload', methods=['GET', 'POST'])
+@login_required
 def upload():
+    user_id = session['user_id']
+
     if request.method == 'GET':
-        from models.exam import get_all_exams
         subjects = get_all_subjects()
-        exams = get_all_exams()
+        exams = get_all_exams(user_id)
         return render_template('paper/upload.html', subjects=subjects, exams=exams)
 
     subject_id = request.form.get('subject_id', type=int)
@@ -42,7 +45,7 @@ def upload():
         return redirect(url_for('paper.upload'))
 
     if not exam_id and exam_name:
-        exam = create_exam(subject_id, exam_name, exam_date)
+        exam = create_exam(subject_id, exam_name, exam_date, user_id=user_id)
         exam_id = exam['id'] if exam else None
     if not exam_id:
         flash('请选择或创建考试', 'error')
@@ -50,7 +53,7 @@ def upload():
 
     task_id = str(uuid.uuid4())
     try:
-        result = process_paper(file, task_id)
+        result = process_paper(file, task_id, user_id=user_id)
     except Exception as e:
         flash(f'试卷处理失败：{e}', 'error')
         return redirect(url_for('paper.upload'))
@@ -67,6 +70,7 @@ def upload():
 
 
 @paper_bp.route('/paper/review/<task_id>')
+@login_required
 def review(task_id):
     result = load_result(task_id)
     if not result:
@@ -89,7 +93,9 @@ def review(task_id):
 
 
 @paper_bp.route('/paper/review/<task_id>/confirm', methods=['POST'])
+@login_required
 def confirm(task_id):
+    user_id = session['user_id']
     result = load_result(task_id)
     if not result:
         flash('处理任务不存在或已过期', 'error')
@@ -127,7 +133,6 @@ def confirm(task_id):
 
         stem = stems[idx].strip() if idx < len(stems) else ''
 
-        # Copy question image to final location
         image_path = None
         q_img_name = questions[idx].get('image', '')
         if q_img_name:
@@ -140,7 +145,7 @@ def confirm(task_id):
                 image_path = f"{subject_name}/{exam_name}/{dest_file}"
 
         stem_value = stem if stem else questions[idx].get('content', '').strip()
-        create_question(exam_id, q_num, stem=stem_value or None, image_path=image_path)
+        create_question(exam_id, q_num, stem=stem_value or None, image_path=image_path, user_id=user_id)
         imported += 1
 
     flash(f'成功导入 {imported} 道题目', 'success')

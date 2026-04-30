@@ -69,11 +69,11 @@ def _extract_pdf_text(pdf_path):
     return all_blocks
 
 
-def _get_recognition_llm_config():
+def _get_recognition_llm_config(user_id=None):
     """Return (api_key, api_url, model) for the configured recognition method."""
     try:
         from models.settings import get_recognition_method
-        method = get_recognition_method()
+        method = get_recognition_method(user_id=user_id)
     except Exception:
         method = 'paddleocr_deepseek'
 
@@ -82,11 +82,11 @@ def _get_recognition_llm_config():
     return DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 
 
-def _get_recognition_method_name():
+def _get_recognition_method_name(user_id=None):
     """Return the configured recognition method key."""
     try:
         from models.settings import get_recognition_method
-        return get_recognition_method()
+        return get_recognition_method(user_id=user_id)
     except Exception:
         return 'paddleocr_deepseek'
 
@@ -94,15 +94,13 @@ def _get_recognition_method_name():
 def _sanitize_llm_json(text):
     """Fix LaTeX backslashes in LLM JSON output so they survive json.loads().
 
-    LLMs output LaTeX commands like \\frac, \\sqrt, \\( etc. with single
-    backslashes.  In JSON these are invalid escapes (or worse, valid ones
-    like \\f in \\frac → form-feed).  We double every backslash that is
-    followed by a letter or paren, turning them into literal backslashes.
+    The model outputs LaTeX with single backslashes which are mostly invalid
+    JSON escapes.  We only preserve already-correct escapes: \\\\, \\\", \\/,
+    and \\uXXXX (with exactly 4 hex digits).  Everything else gets its
+    backslash doubled so it becomes a literal backslash after JSON parsing.
+    The negative lookbehind prevents double-escaping already-escaped chars.
     """
-    # Double backslash before letters (LaTeX commands: \frac, \sqrt, \Gamma…)
-    text = re.sub(r'\\(?=[a-zA-Z])', r'\\\\', text)
-    # Double backslash before parens (inline LaTeX delimiters: \( \))
-    text = re.sub(r'\\(?=[()])', r'\\\\', text)
+    text = re.sub(r'(?<!\\)\\(?![\\"/]|u[0-9a-fA-F]{4})', r'\\\\', text)
     return text
 
 
@@ -140,7 +138,10 @@ DOUBAO_VISION_PROMPT = """你是一个试卷题目识别助手。你的任务是
 - 题号格式统一为数字（去除"第"、"题"、"、"、"."等）
 - 如果题目包含子问题如(1)(2)(3)，将所有子问题合并到一道题中
 - 数学公式使用 $...$ 或 $$...$$ 语法（禁止使用 \\(...\\) 语法）
+- 禁止在content中使用反斜杠后跟空格、下划线、括号等字符
 - 不要遗漏任何题目"""
+
+MAX_IMAGE_DIM = 2048  # Resize images to at most this width/height before sending
 
 _doubao_client = None
 
@@ -157,21 +158,32 @@ def _get_doubao_client():
     return _doubao_client
 
 
-def _recognize_page_with_doubao(image_path, page_num, total_pages):
-    """Use Doubao Seed vision model to recognize questions on a page image.
+def _encode_image_for_api(image_path):
+    """Resize and encode an image to a base64 data URI suitable for vision API."""
+    from io import BytesIO
 
-    Returns a dict with 'questions' list, each containing:
-      question_number, content, y_start, y_end
-    """
+    img = Image.open(image_path)
+    w, h = img.size
+    if max(w, h) > MAX_IMAGE_DIM:
+        scale = MAX_IMAGE_DIM / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+
+    buf = BytesIO()
+    img.save(buf, format='JPEG', quality=85)
+    img_bytes = buf.getvalue()
+    img_b64 = base64.b64encode(img_bytes).decode('utf-8')
+    return f'data:image/jpeg;base64,{img_b64}'
+
+
+def _recognize_page_with_doubao(image_path, page_num, total_pages):
+    """Use Doubao Seed vision model to recognize questions on a page image."""
     if not DOUBAO_API_KEY:
         return {'questions': [], 'note': 'Doubao API key not configured'}
 
-    # Encode image as base64 data URI
-    with open(image_path, 'rb') as f:
-        img_data = base64.b64encode(f.read()).decode('utf-8')
-    ext = os.path.splitext(image_path)[1].lower()
-    mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else 'image/png'
-    data_uri = f'data:{mime};base64,{img_data}'
+    data_uri = _encode_image_for_api(image_path)
 
     client = _get_doubao_client()
     response = client.responses.create(
@@ -198,7 +210,6 @@ def _recognize_page_with_doubao(image_path, page_num, total_pages):
         }],
     )
 
-    # Extract text from the response (skip reasoning items)
     raw_text = ''
     for item in response.output:
         if getattr(item, 'type', '') == 'message':
@@ -419,10 +430,10 @@ def _split_into_questions(blocks, page_height):
     return questions
 
 
-def _refine_with_llm(questions):
+def _refine_with_llm(questions, user_id=None):
     """Use LLM text API to refine question content and fix any
     mis-splits. Returns the refined question list."""
-    api_key, api_url, model = _get_recognition_llm_config()
+    api_key, api_url, model = _get_recognition_llm_config(user_id=user_id)
     if not api_key or not questions:
         return questions
 
@@ -482,12 +493,103 @@ def _refine_with_llm(questions):
 
 
 def _crop_question(page_img_path, y_start, y_end, output_path):
-    """Crop a question from a page image by y-percentage range."""
+    """Crop a question from a page image by y-percentage range (no padding)."""
+    img = Image.open(page_img_path)
+    w, h = img.size
+    top = max(0, int(h * y_start / 100))
+    bottom = min(h, int(h * y_end / 100))
+    cropped = img.crop((0, top, w, bottom))
+    cropped.save(output_path, 'PNG')
+
+
+def _match_questions_with_ocr(questions, ocr_blocks, image_height):
+    """Use OCR text blocks to find precise Y positions for Doubao questions.
+
+    Phase 1: match OCR question-number blocks to Doubao questions by actual
+    number (e.g. OCR "6." block matches Q6, not the 6th question in order).
+    Phase 2: unmatched questions interpolate between neighboring anchors.
+    """
+
+    def _clean_num(n):
+        return str(n).strip().lstrip('0') or '0'
+
+    # Find section boundary
+    section_re = re.compile(r'^[一二三四五六七八九十]+[、\．]')
+    section_y = 0
+    for block in ocr_blocks:
+        if section_re.match(block.get('text', '')):
+            section_y = block['y0']
+            break
+
+    # Collect OCR question-number blocks, extract actual number
+    ocr_by_num = {}  # {clean_number: y_top_px}
+    for block in ocr_blocks:
+        text = block.get('text', '')
+        if block['y0'] <= section_y:
+            continue
+        if _SUB_QUESTION_RE.match(text):
+            continue
+        m = _QUESTION_PATTERN.match(text)
+        if m:
+            num = _clean_num(m.group(1) or m.group(2) or '')
+            if num and num not in ocr_by_num:
+                ocr_by_num[num] = block['y0']
+
+    # Phase 1: exact number match
+    anchors = []  # [(question_index, y_px)]
+    for qi, q in enumerate(questions):
+        q_num = _clean_num(q.get('question_number', ''))
+        if q_num in ocr_by_num:
+            q['y0_px'] = int(ocr_by_num[q_num])
+            anchors.append((qi, q['y0_px']))
+        else:
+            q['y0_px'] = None  # mark as unmatched
+
+    # Sort anchors by Y position
+    anchors.sort(key=lambda x: x[1])
+
+    # Phase 2: interpolate unmatched questions between anchors
+    for qi, q in enumerate(questions):
+        if q.get('y0_px') is not None:
+            continue
+
+        # Find nearest anchors above and below by question index
+        above_qi, above_y = None, 0
+        below_qi, below_y = None, image_height
+
+        for a_qi, a_y in anchors:
+            if a_qi < qi and (above_qi is None or a_qi > above_qi):
+                above_qi, above_y = a_qi, a_y
+            if a_qi > qi and (below_qi is None or a_qi < below_qi):
+                below_qi, below_y = a_qi, a_y
+
+        if above_qi is not None and below_qi is not None:
+            # Interpolate: split the pixel gap proportionally by question count
+            gap_questions = below_qi - above_qi
+            gap_pixels = below_y - above_y
+            q['y0_px'] = int(above_y + gap_pixels * (qi - above_qi) / gap_questions)
+        elif above_qi is not None:
+            # Extrapolate after last anchor
+            q['y0_px'] = int(above_y + 80 * (qi - above_qi))
+        elif below_qi is not None:
+            # Before first anchor
+            q['y0_px'] = max(0, int(below_y - 80 * (below_qi - qi)))
+        else:
+            # No anchors at all — fall back to LLM estimate
+            q['y0_px'] = int(image_height * float(q.get('y_start', 0)) / 100)
+
+    # y1_px set later by _crop_questions_for_page; set a placeholder
+    for q in questions:
+        q['y1_px'] = q['y0_px'] + 50
+
+
+def _crop_question_px(page_img_path, y0_px, y1_px, output_path):
+    """Crop a question from a page image using pixel coordinates."""
     img = Image.open(page_img_path)
     w, h = img.size
     padding = 15
-    top = max(0, int(h * y_start / 100) - padding)
-    bottom = min(h, int(h * y_end / 100) + padding)
+    top = max(0, y0_px - padding)
+    bottom = min(h, y1_px + padding)
     cropped = img.crop((0, top, w, bottom))
     cropped.save(output_path, 'PNG')
 
@@ -507,33 +609,45 @@ def _pdf_to_images(pdf_path, output_dir):
 
 
 def _crop_questions_for_page(questions, page_img, questions_dir, page_num):
-    """Crop question images from a page image using midpoints between questions."""
-    q_count = len(questions)
-    for i, q in enumerate(questions):
+    """Crop question images from a page image.
+
+    Boundaries are seamless: Q(i+1).top == Q(i).bottom.  Only the first
+    question has a small top offset to skip page headers.  The last question
+    extends to the bottom of the page.
+    """
+    # Sort by y_start so we can walk top-to-bottom
+    sorted_pairs = sorted(
+        enumerate(questions), key=lambda x: float(x[1].get('y_start', 0))
+    )
+    q_count = len(sorted_pairs)
+    pad_pct = 1.5
+
+    for rank, (orig_i, q) in enumerate(sorted_pairs):
         text_y0 = float(q.get('y_start', 0))
-        text_y1 = float(q.get('y_end', 100))
 
-        prev_y1 = float(questions[i - 1].get('y_end', 0)) if i > 0 else 0
-        next_y0 = float(questions[i + 1].get('y_start', 100)) if i + 1 < q_count else 100
-
-        min_pad = 3
-        if i == 0:
-            crop_y0 = max(0, text_y0 - min_pad)
+        if rank == 0:
+            crop_y0 = max(0, text_y0 - pad_pct)
         else:
-            crop_y0 = (prev_y1 + text_y0) / 2
+            # Seamless: start exactly where previous question ended
+            crop_y0 = prev_crop_y1
 
-        if i + 1 < q_count:
-            crop_y1 = (text_y1 + next_y0) / 2
+        if rank + 1 < q_count:
+            # End at the next question's start position
+            next_y0 = float(sorted_pairs[rank + 1][1].get('y_start', 100))
+            crop_y1 = next_y0
         else:
-            crop_y1 = min(100, text_y1 + min_pad)
+            # Last question: extend to page bottom
+            crop_y1 = 100
 
         if crop_y1 - crop_y0 < 5:
             mid = (crop_y0 + crop_y1) / 2
             crop_y0 = max(0, mid - 2.5)
             crop_y1 = min(100, mid + 2.5)
 
+        prev_crop_y1 = crop_y1
+
         q_num = q.get('question_number', '')
-        img_name = f'p{page_num + 1:02d}_{i:02d}_q{q_num}.png'
+        img_name = f'p{page_num + 1:02d}_{rank:02d}_q{q_num}.png'
         img_path = os.path.join(questions_dir, img_name)
         try:
             if page_img and os.path.isfile(page_img):
@@ -547,7 +661,7 @@ def _crop_questions_for_page(questions, page_img, questions_dir, page_num):
         q['page'] = page_num + 1
 
 
-def process_paper(file, task_id):
+def process_paper(file, task_id, user_id=None):
     """Process uploaded paper file: extract text, segment questions, crop images.
 
     Uses the configured recognition method (PaddleOCR+DeepSeek or Doubao Seed).
@@ -563,7 +677,7 @@ def process_paper(file, task_id):
     file.save(original_path)
 
     is_pdf = (ext == '.pdf')
-    recognition_method = _get_recognition_method_name()
+    recognition_method = _get_recognition_method_name(user_id=user_id)
 
     # ── Prepare page images ──
     if is_pdf:
@@ -587,11 +701,26 @@ def process_paper(file, task_id):
                 continue
 
             questions = result.get('questions', [])
-            # Ensure position keys are named consistently
+            # Keep LLM-estimated positions as fallback
             for q in questions:
                 pos = q.pop('position', None) or {}
                 q['y_start'] = float(pos.get('y_start', q.pop('y_start', 0)))
                 q['y_end'] = float(pos.get('y_end', q.pop('y_end', 100)))
+
+            # Use PaddleOCR for precise question positions
+            ocr_blocks = _extract_image_text(page_img)
+            if ocr_blocks:
+                img = Image.open(page_img)
+                _match_questions_with_ocr(questions, ocr_blocks, img.size[1])
+                for q in questions:
+                    if 'y0_px' in q:
+                        y0 = q['y0_px']
+                        y1 = q['y1_px']
+                        img_h = img.size[1]
+                        q['y_start'] = round(y0 / img_h * 100, 1)
+                        q['y_end'] = round(y1 / img_h * 100, 1)
+                    q.pop('y0_px', None)
+                    q.pop('y1_px', None)
 
             _crop_questions_for_page(questions, page_img, questions_dir, idx)
             all_questions.extend(questions)
@@ -647,7 +776,7 @@ def process_paper(file, task_id):
             continue
 
         try:
-            questions = _refine_with_llm(questions)
+            questions = _refine_with_llm(questions, user_id=user_id)
         except Exception as e:
             errors.append(f'第{page_num + 1}页 LLM 优化失败：{e}')
 

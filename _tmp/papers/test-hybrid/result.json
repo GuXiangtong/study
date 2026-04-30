@@ -1,0 +1,97 @@
+{
+  "task_id": "test-hybrid",
+  "original_filename": "original.jpg",
+  "page_count": 1,
+  "question_count": 11,
+  "questions": [
+    {
+      "question_number": "1",
+      "content": "设\\( 3i \\)（\\( i \\)为虚数单位）是关于\\( x \\)的方程\\( x^2 + m = 0 (m \\in R) \\)的根，则\\( m = \\)____。",
+      "y_start": 35.6,
+      "y_end": 37.8,
+      "image": "p01_00_q1.png",
+      "page": 1
+    },
+    {
+      "question_number": "2",
+      "content": "设全集\\( U = R \\)，已知集合\\( A = \\left\\{ x \\mid \\frac{x}{x - 1} \\geq 0 \\right\\} \\)，则\\( \\overline{A} = \\)____。",
+      "y_start": 40.1,
+      "y_end": 42.4,
+      "image": "p01_01_q2.png",
+      "page": 1
+    },
+    {
+      "question_number": "3",
+      "content": "已知向量\\( \\vec{a} = (5, 3) \\)，\\( \\vec{b} = (-2, 4) \\)，则\\( \\vec{a} \\)在\\( \\vec{b} \\)上的投影向量的坐标为____。",
+      "y_start": 44.8,
+      "y_end": 46.6,
+      "image": "p01_02_q3.png",
+      "page": 1
+    },
+    {
+      "question_number": "4",
+      "content": "已知平面向量\\( \\vec{a}, \\vec{b} \\)的夹角为\\( \\frac{\\pi}{3} \\)，\\( |\\vec{a}| = 2 \\)，\\( |\\vec{b}| = 1 \\)，则\\( |\\vec{a} + 2\\vec{b}| = \\)____。",
+      "y_start": 48.5,
+      "y_end": 52.2,
+      "image": "p01_03_q4.png",
+      "page": 1
+    },
+    {
+      "question_number": "5",
+      "content": "已知\\( \\sqrt{3}\\cos\\alpha - \\sin\\alpha = 1 \\)，则\\( \\cos(2\\alpha + \\frac{\\pi}{3}) = \\)____。",
+      "y_start": 55.9,
+      "y_end": 57.7,
+      "image": "p01_04_q5.png",
+      "page": 1
+    },
+    {
+      "question_number": "6",
+      "content": "若不等式\\( a^2 + b^2 \\geq 2kab \\)对任意\\( a, b \\in R \\)都成立，则实数\\( k \\)的取值范围是____。",
+      "y_start": 59.6,
+      "y_end": 66.8,
+      "image": "p01_05_q6.png",
+      "page": 1
+    },
+    {
+      "question_number": "7",
+      "content": "已知函数\\( f(x) = x + \\ln \\frac{2 + x}{2 - x} \\)，且满足\\( f(a) + f(2a - 1) > 0 \\)，则实数\\( a \\)的取值范围为____。",
+      "y_start": 74.0,
+      "y_end": 77.5,
+      "image": "p01_06_q7.png",
+      "page": 1
+    },
+    {
+      "question_number": "8",
+      "content": "在\\( \\triangle ABC \\)中，已知\\( \\sin A = a \\)，\\( \\cos B = \\frac{3}{5} \\)，若\\( \\cos C \\)有唯一值，则实数\\( a \\)的取值范围为____。",
+      "y_start": 81.0,
+      "y_end": 84.5,
+      "image": "p01_07_q8.png",
+      "page": 1
+    },
+    {
+      "question_number": "9",
+      "content": "设函数\\( f(x) = \\sin(\\omega x + \\frac{\\pi}{3}) \\)在区间\\( (0, \\pi) \\)恰有三个极值点、两个零点，则正实数\\( \\omega \\)的取值范围是____。",
+      "y_start": 88.0,
+      "y_end": 91.5,
+      "image": "p01_08_q9.png",
+      "page": 1
+    },
+    {
+      "question_number": "10",
+      "content": "已知\\( \\triangle ABC \\)的外接圆半径为2，三个角\\( A, B, C \\)的对边分别为\\( a, b, c \\)，若\\( a\\cos B + b\\cos A = 2\\sqrt{3} \\)，且\\( \\overrightarrow{CA} \\cdot \\overrightarrow{CB} < 0 \\)，则\\( 2a + 3b \\)的最大值为____。",
+      "y_start": 95.0,
+      "y_end": 98.0,
+      "image": "p01_09_q10.png",
+      "page": 1
+    },
+    {
+      "question_number": "11",
+      "content": "设\\( a \\)是实数，\\( a > 0 \\)且\\( a \\neq 1 \\)，\\( f(x) = \\begin{cases} x^2 + a, & x \\leq 0 \\ a^x, & x > 0 \\end{cases} \\)，若关于\\( x \\)的方程\\( f(x) = (1 - a)x + 1 \\)有且仅有一解，则\\( a \\)的取值范围为____。",
+      "y_start": 101.0,
+      "y_end": 101.9,
+      "image": "p01_10_q11.png",
+      "page": 1
+    }
+  ],
+  "errors": []
+}

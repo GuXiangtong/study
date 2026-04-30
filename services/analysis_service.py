@@ -215,15 +215,15 @@ def _parse_llm_response(llm_data):
 class AnalysisService:
     """Execute the 4-step analysis workflow from CLAUDE.md."""
 
-    def __init__(self, mode=None):
+    def __init__(self, mode=None, user_id=None):
+        self.user_id = user_id
         if mode is None:
-            # Read from user's method setting, default to deepseek
             try:
                 from models.settings import get_analysis_method
-                method = get_analysis_method()
+                method = get_analysis_method(user_id=user_id)
             except Exception:
                 method = 'deepseek'
-            self.mode = method  # 'deepseek' or 'doubao_seed'
+            self.mode = method
         else:
             self.mode = mode
 
@@ -289,6 +289,7 @@ class AnalysisService:
             step2_data=json.dumps(step2, ensure_ascii=False),
             step3_data=json.dumps(step3, ensure_ascii=False),
             step4_data=json.dumps(step4, ensure_ascii=False),
+            user_id=self.user_id,
         )
         return {'id': analysis_id}
 

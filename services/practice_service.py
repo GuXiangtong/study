@@ -7,7 +7,7 @@ from models.practice import create_practice
 class PracticeService:
     """Generate 3 consolidation exercises for an analysis result."""
 
-    def generate_practices(self, analysis_id):
+    def generate_practices(self, analysis_id, user_id=None):
         analysis = get_analysis(analysis_id)
         if not analysis:
             raise ValueError(f"Analysis {analysis_id} not found")
@@ -41,6 +41,7 @@ class PracticeService:
                 answer=self._make_answer(p['difficulty'], kps),
                 solution_steps=self._make_solution(p['difficulty'], kps),
                 knowledge_points=kps,
+                user_id=user_id,
             )
 
     def _make_basic_question(self, kps):

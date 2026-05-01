@@ -1,11 +1,13 @@
 from database import get_db
 
 
-def create_question(exam_id, question_number, stem=None, image_path=None, user_id=None):
+def create_question(exam_id, question_number, stem=None, image_path=None,
+                     student_answer=None, error_reason=None, user_id=None):
     db = get_db()
     db.execute(
-        "INSERT INTO questions (exam_id, question_number, stem, image_path, user_id) VALUES (?, ?, ?, ?, ?)",
-        (exam_id, question_number, stem, image_path, user_id)
+        "INSERT INTO questions (exam_id, question_number, stem, image_path, "
+        "student_answer, error_reason, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (exam_id, question_number, stem, image_path, student_answer, error_reason, user_id)
     )
     db.commit()
     return db.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -59,7 +61,7 @@ def get_questions_filtered(subject_id=None, exam_id=None, search=None, user_id=N
 
 def update_question(question_id, **fields):
     db = get_db()
-    allowed = {'question_number', 'stem', 'image_path'}
+    allowed = {'question_number', 'stem', 'image_path', 'student_answer', 'error_reason'}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return

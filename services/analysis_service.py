@@ -11,67 +11,20 @@ from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
 from models.settings import get_subject_prompts
 
-SYSTEM_PROMPT = """你是一名上海市高三辅导老师，擅长分析学生错题。你需要严格按照以下四步流程输出分析结果。
+_PROMPT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prompts')
 
-## 核心原则
-- 所有知识点严格限定在上海市高考考纲范围内
-- 绝不直接给出答案，重点教授思考方式和解题路径
-- 用苏格拉底式的提问引导学生自己找到答案
-- 数学公式使用 LaTeX 语法（$...$ 行内，$$...$$ 行间）
-- 用通俗的语言解释抽象概念
 
-## 输出格式
-请严格按照以下 JSON 格式输出（不要输出其他内容）：
+def _load_system_prompt():
+    """Load the default system prompt from file."""
+    path = os.path.join(_PROMPT_DIR, 'system_prompt.txt')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    # Fallback in case file is missing
+    return "你是一名上海市高三辅导老师，擅长分析学生错题。请用JSON格式输出四步分析结果。"
 
-```json
-{
-  "step1": {
-    "knowledge_points": "具体的知识点（如：二次函数在闭区间上的最值问题）",
-    "syllabus_section": "所属考纲板块",
-    "ai_analysis": "详细分析：1)题目考察什么 2)学生错误根源 3)需要补齐的知识点"
-  },
-  "step2": {
-    "weakness_analysis": "从概念层面、方法层面、思维层面分别诊断薄弱点，梳理前置知识→核心知识→拓展应用的知识链条",
-    "knowledge_framework": "知识框架描述",
-    "comparison_table": "易混淆概念对比（如有）"
-  },
-  "step3": {
-    "steps": [
-      {"name": "审题", "guidance": "引导学生审题的提问"},
-      {"name": "切入点", "guidance": "帮助学生找到切入点的提问"},
-      {"name": "路径推演", "guidance": "一步一步推导的思路框架"},
-      {"name": "易错提醒", "guidance": "这类题的常见错误"},
-      {"name": "验证方法", "guidance": "如何检查答案正确性"}
-    ],
-    "note": "以上每一步请学生先自己思考，再看提示"
-  },
-  "step4": {
-    "exercises": [
-      {
-        "difficulty": "基础题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      },
-      {
-        "difficulty": "提高题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      },
-      {
-        "difficulty": "难题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      }
-    ]
-  }
-}
-```"""
+
+SYSTEM_PROMPT = _load_system_prompt()
 
 
 def _build_analysis_prompt(question, sub_questions):
@@ -86,6 +39,14 @@ def _build_analysis_prompt(question, sub_questions):
     question_text = question.get('stem') or ''
     if question_text:
         prompt_parts.append(f"\n## 题目内容\n{question_text}")
+
+    # Brief factual context — no interpretation requested
+    q_student_answer = question.get('student_answer') or ''
+    q_error_reason = question.get('error_reason') or ''
+    if q_student_answer:
+        prompt_parts.append(f"\n学生当时的作答：{q_student_answer}")
+    if q_error_reason:
+        prompt_parts.append(f"学生自述原因：{q_error_reason}")
 
     prompt_parts.append(f"\n## 子问题及学生作答情况")
     prompt_parts.append(f"本题共 {len(sub_questions)} 个子问题。\n")
@@ -147,7 +108,19 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
     if json_match:
         content = json_match.group(1)
-    return json.loads(content)
+    return _safe_json_parse(content)
+
+
+def _safe_json_parse(text):
+    """Parse JSON, fixing LaTeX backslash escapes that break the parser."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Fix backslash followed by 2+ letters (e.g. \frac, \sqrt, \theta)
+        text = re.sub(r'\\([a-zA-Z]{2,})', r'\\\\\1', text)
+        # Fix backslash followed by a non-JSON-escape character
+        text = re.sub(r'\\([^"\\/bfnrtu0-9])', r'\\\\\1', text)
+        return json.loads(text)
 
 
 def _parse_llm_response(llm_data):
@@ -172,6 +145,8 @@ def _parse_llm_response(llm_data):
         'title': '第三步：引导思考，给出解题路径',
         'steps': llm_data.get('step3', {}).get('steps', []),
         'note': llm_data.get('step3', {}).get('note', '以上每一步请学生先自己思考，再看提示。绝不直接给出答案。'),
+        'correct_answer': llm_data.get('step3', {}).get('correct_answer', ''),
+        'solution_steps': llm_data.get('step3', {}).get('solution_steps', ''),
     }
 
     step4_raw = llm_data.get('step4', {})
@@ -469,6 +444,22 @@ class AnalysisService:
 
 {step3.get('note', '')}
 
+"""
+        if step3.get('correct_answer'):
+            content += f"""
+### 正确答案
+
+{step3['correct_answer']}
+
+"""
+        if step3.get('solution_steps'):
+            content += f"""
+### 解题步骤
+
+{step3['solution_steps']}
+
+"""
+        content += f"""
 ---
 
 ## {step4['title']}

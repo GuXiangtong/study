@@ -51,6 +51,17 @@
             <p class="form-hint">如果题目以图片形式存在，可以只上传图片。</p>
         </div>
 
+        <div class="form-row">
+            <div class="form-group">
+                <label>学生错误答案（选填）</label>
+                <textarea name="student_answer" rows="2" placeholder="学生当时做出的错误答案"></textarea>
+            </div>
+            <div class="form-group">
+                <label>出错原因（选填）</label>
+                <textarea name="error_reason" rows="2" placeholder="学生自述的出错原因"></textarea>
+            </div>
+        </div>
+
         <div class="form-group">
             <label>上传题目图片</label>
             <input type="file" name="image" accept="image/*" onchange="previewImage(this)">

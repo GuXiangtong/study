@@ -71,7 +71,6 @@
         <div class="card">
             <textarea name="system_prompt" class="subject-prompt-input"
                       rows="20">{{ current.get('system_prompt') or default_system_prompt }}</textarea>
-            <script type="text/plain" id="default-system-prompt-data">{{ default_system_prompt }}</script>
             <div style="margin-top:8px;">
                 <button type="button" class="btn btn-secondary btn-small" id="reset-system-prompt">恢复默认</button>
             </div>
@@ -85,6 +84,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+var DEFAULT_SYSTEM_PROMPT = {{ default_system_prompt | tojson }};
+</script>
 <script>
 (function() {
     var tabs = document.querySelectorAll('.tab-nav');
@@ -105,9 +107,8 @@
     if (resetBtn) {
         resetBtn.addEventListener('click', function() {
             var ta = document.querySelector('textarea[name="system_prompt"]');
-            var defaultPrompt = document.getElementById('default-system-prompt-data').textContent;
             if (ta && confirm('确定恢复为默认系统提示词吗？您当前的修改将被丢弃。')) {
-                ta.value = defaultPrompt;
+                ta.value = DEFAULT_SYSTEM_PROMPT;
             }
         });
     }

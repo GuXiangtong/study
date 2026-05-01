@@ -23,6 +23,24 @@
 </div>
 {% endif %}
 
+{% if question.student_answer or question.error_reason %}
+<div class="card" style="border-left: 3px solid var(--danger);">
+    <h2>错题信息</h2>
+    {% if question.student_answer %}
+    <div class="field-item">
+        <strong>学生错误答案：</strong>
+        <span class="wrong-answer">{{ question.student_answer }}</span>
+    </div>
+    {% endif %}
+    {% if question.error_reason %}
+    <div class="field-item" style="margin-top:8px;">
+        <strong>出错原因：</strong>
+        <span>{{ question.error_reason }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if question.image_path %}
 <div class="card">
     <h2>题目图片</h2>

@@ -64,6 +64,14 @@
         </div>
         {% endfor %}
     </div>
+    {% if step3.correct_answer %}
+    <h3 style="margin-top:16px;">正确答案</h3>
+    <div class="analysis-text">{{ step3.correct_answer | replace('\n', '<br>') | safe }}</div>
+    {% endif %}
+    {% if step3.solution_steps %}
+    <h3 style="margin-top:16px;">解题步骤</h3>
+    <div class="analysis-text">{{ step3.solution_steps | replace('\n', '<br>') | safe }}</div>
+    {% endif %}
 </div>
 {% endif %}
 

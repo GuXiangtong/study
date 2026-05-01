@@ -1,10 +1,22 @@
+import os
+
 from flask import Blueprint, flash, redirect, render_template, request, url_for, session
 from utils.decorators import login_required
 from models.settings import (ANALYSIS_METHODS, RECOGNITION_METHODS,
                              get_all_settings, set_setting,
                              get_subject_prompts, set_subject_prompts)
 from models.subject import get_all_subjects
-from services.analysis_service import SYSTEM_PROMPT as DEFAULT_SYSTEM_PROMPT
+from config import BASE_DIR
+
+
+def _read_default_system_prompt():
+    """Read the default system prompt from file, bypassing module cache."""
+    path = os.path.join(BASE_DIR, 'prompts', 'system_prompt.txt')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    from services.analysis_service import SYSTEM_PROMPT
+    return SYSTEM_PROMPT
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -48,4 +60,4 @@ def index():
                            current=current,
                            subjects=subjects,
                            subject_prompts=subject_prompts,
-                           default_system_prompt=DEFAULT_SYSTEM_PROMPT)
+                           default_system_prompt=_read_default_system_prompt())

@@ -5,7 +5,12 @@
 <div class="page-header">
     <h1>📋 错题分析报告</h1>
     <p>学科：{{ analysis.subject_name }} | 考试：{{ analysis.exam_name }} | 题号：{{ analysis.question_number }}{{ analysis.sub_label or '' }}</p>
-    <p class="analysis-date">分析时间：{{ analysis.created_at }}</p>
+    <p class="analysis-date">分析时间：{{ analysis.created_at|localtime }}{% if analysis.model %} | 分析模型：{{ analysis.model }}{% endif %}</p>
+    <div class="header-actions">
+        <form method="POST" action="{{ url_for('analysis.delete_analysis_route', analysis_id=analysis.id) }}" onsubmit="return confirm('确定删除这条分析记录吗？')">
+            <button type="submit" class="btn btn-danger">删除此报告</button>
+        </form>
+    </div>
 </div>
 
 {% if step1 %}

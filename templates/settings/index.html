@@ -4,50 +4,113 @@
 {% block content %}
 <div class="page-header">
     <h1>设置</h1>
-    <p>配置题目识别和分析的 AI 方式</p>
+    <p>配置题目识别和分析的 AI 方式，以及各学科的个性化分析要求</p>
 </div>
 
 <form method="POST" class="settings-form">
-    <div class="card">
-        <h2>题目识别</h2>
-        <p class="form-hint" style="margin-bottom:12px;">上传试卷时，用哪种方式识别和拆分题目。</p>
-        {% for key, label in recognition_methods.items() %}
-        <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
-            <input type="radio" name="recognition_method" value="{{ key }}"
-                   {% if current.get('recognition_method', 'paddleocr_deepseek') == key %}checked{% endif %}>
-            <div>
-                <strong>{{ label }}</strong>
-                {% if key == 'paddleocr_deepseek' %}
-                <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
-                {% else %}
-                <span class="badge" style="background:#f1f5f9;color:var(--text-muted);margin-left:8px;">即将支持</span>
-                {% endif %}
-            </div>
-        </label>
+    <div class="tabs">
+        <button type="button" class="tab-nav active" data-tab="tab-ai">AI 方式</button>
+        <button type="button" class="tab-nav" data-tab="tab-subject">学科个性化提示词</button>
+        <button type="button" class="tab-nav" data-tab="tab-system">系统提示词</button>
+    </div>
+
+    <!-- Tab 1: AI Methods -->
+    <div class="tab-panel active" id="tab-ai">
+        <div class="card">
+            <h2>题目识别</h2>
+            <p class="form-hint" style="margin-bottom:12px;">上传试卷时，用哪种方式识别和拆分题目。</p>
+            {% for key, label in recognition_methods.items() %}
+            <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+                <input type="radio" name="recognition_method" value="{{ key }}"
+                       {% if current.get('recognition_method', 'paddleocr_deepseek') == key %}checked{% endif %}>
+                <div>
+                    <strong>{{ label }}</strong>
+                    <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <h2>题目分析</h2>
+            <p class="form-hint" style="margin-bottom:12px;">点击「分析」按钮时，用哪种 AI 进行四步错题分析。</p>
+            {% for key, label in analysis_methods.items() %}
+            <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+                <input type="radio" name="analysis_method" value="{{ key }}"
+                       {% if current.get('analysis_method', 'deepseek') == key %}checked{% endif %}>
+                <div>
+                    <strong>{{ label }}</strong>
+                    <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tab 2: Subject-Specific Prompts -->
+    <div class="tab-panel" id="tab-subject">
+        <p class="form-hint" style="margin-bottom:16px;">
+            为每门学科设置个性化分析要求（选填）。这些要求会在分析错题时与系统提示词一起发送给 AI，用于补充针对性的教学要求、重点方向等。
+        </p>
+
+        {% for subject in subjects %}
+        <div class="card">
+            <h2>{{ subject.name }}</h2>
+            <textarea name="prompt_{{ subject.name }}" class="subject-prompt-input"
+                      placeholder="例如：重点关注函数与导数综合题的解题思路；强调数形结合方法；提醒检查计算细节..."
+                      rows="4">{{ subject_prompts.get(subject.name, '') }}</textarea>
+        </div>
         {% endfor %}
     </div>
 
-    <div class="card">
-        <h2>题目分析</h2>
-        <p class="form-hint" style="margin-bottom:12px;">点击「分析」按钮时，用哪种 AI 进行四步错题分析。</p>
-        {% for key, label in analysis_methods.items() %}
-        <label class="radio-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
-            <input type="radio" name="analysis_method" value="{{ key }}"
-                   {% if current.get('analysis_method', 'deepseek') == key %}checked{% endif %}>
-            <div>
-                <strong>{{ label }}</strong>
-                {% if key == 'deepseek' %}
-                <span class="badge" style="background:#e0e7ff;color:var(--primary);margin-left:8px;">当前可用</span>
-                {% else %}
-                <span class="badge" style="background:#f1f5f9;color:var(--text-muted);margin-left:8px;">即将支持</span>
-                {% endif %}
+    <!-- Tab 3: System Prompt -->
+    <div class="tab-panel" id="tab-system">
+        <p class="form-hint" style="margin-bottom:16px;">
+            自定义分析错题时发送给 AI 的系统提示词。修改后会影响所有学科的分析。留空则使用默认提示词。
+        </p>
+        <div class="card">
+            <textarea name="system_prompt" class="subject-prompt-input"
+                      rows="20">{{ current.get('system_prompt') or default_system_prompt }}</textarea>
+            <script type="text/plain" id="default-system-prompt-data">{{ default_system_prompt }}</script>
+            <div style="margin-top:8px;">
+                <button type="button" class="btn btn-secondary btn-small" id="reset-system-prompt">恢复默认</button>
             </div>
-        </label>
-        {% endfor %}
+        </div>
     </div>
 
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">保存设置</button>
     </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var tabs = document.querySelectorAll('.tab-nav');
+    var panels = document.querySelectorAll('.tab-panel');
+
+    tabs.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var targetId = this.getAttribute('data-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            panels.forEach(function(p) { p.classList.remove('active'); });
+            this.classList.add('active');
+            var target = document.getElementById(targetId);
+            if (target) target.classList.add('active');
+        });
+    });
+
+    var resetBtn = document.getElementById('reset-system-prompt');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            var ta = document.querySelector('textarea[name="system_prompt"]');
+            var defaultPrompt = document.getElementById('default-system-prompt-data').textContent;
+            if (ta && confirm('确定恢复为默认系统提示词吗？您当前的修改将被丢弃。')) {
+                ta.value = defaultPrompt;
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

@@ -60,6 +60,9 @@ def _run_migrations(db):
     if not _column_exists(db, 'sub_questions', 'user_id'):
         db.execute("ALTER TABLE sub_questions ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
 
+    if not _column_exists(db, 'analysis_results', 'model'):
+        db.execute("ALTER TABLE analysis_results ADD COLUMN model TEXT NOT NULL DEFAULT ''")
+
     # Rebuild settings table with (user_id, key) PK
     if not _column_exists(db, 'settings', 'user_id'):
         db.executescript('''
@@ -137,6 +140,7 @@ def init_db():
             step2_data      TEXT,
             step3_data      TEXT,
             step4_data      TEXT,
+            model           TEXT    NOT NULL DEFAULT '',
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 

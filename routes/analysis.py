@@ -1,9 +1,11 @@
 import json
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from utils.decorators import login_required
 from models.question import get_question
-from models.analysis import get_analysis
+from models.analysis import get_analysis, delete_analysis
 from services.analysis_service import AnalysisService
+from config import ANALYSIS_DIR
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -20,12 +22,38 @@ def run_analysis(question_id):
     try:
         service = AnalysisService(user_id=user_id)
         result = service.run_full_analysis(question_id)
-        mode_label = 'LLM 分析' if service.mode == 'llm' else '模板分析'
-        flash(f'分析完成（{mode_label}）', 'success')
+        if result.get('llm_error'):
+            flash(f'AI 调用失败，使用模板回退。错误：{result["llm_error"]}', 'warning')
+        else:
+            mode_label = {'deepseek': 'DeepSeek AI', 'doubao_seed': 'Doubao Seed AI'}.get(service.mode, service.mode)
+            flash(f'分析完成（{mode_label}）', 'success')
         return redirect(url_for('analysis.view_analysis', analysis_id=result['id']))
     except Exception as e:
         flash(f'分析失败：{e}', 'error')
         return redirect(request.referrer or url_for('questions.list_questions'))
+
+
+@analysis_bp.route('/analysis/<int:analysis_id>/delete', methods=['POST'])
+@login_required
+def delete_analysis_route(analysis_id):
+    user_id = session['user_id']
+    analysis = get_analysis(analysis_id, user_id=user_id)
+    if not analysis:
+        flash('分析记录不存在或无权访问', 'error')
+        return redirect(url_for('questions.list_questions'))
+
+    question_id = analysis.get('question_id')
+
+    file_path = delete_analysis(analysis_id, user_id=user_id)
+    if file_path:
+        full_path = os.path.join(ANALYSIS_DIR, file_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+
+    flash('分析记录已删除', 'success')
+    if question_id:
+        return redirect(url_for('questions.detail', question_id=question_id))
+    return redirect(url_for('questions.list_questions'))
 
 
 @analysis_bp.route('/analysis/<int:analysis_id>')

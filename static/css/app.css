@@ -438,6 +438,60 @@ details summary:hover { color: var(--primary-hover); }
     box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
 }
 
+/* === Tabs === */
+.tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+}
+
+.tab-nav {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-nav:hover { color: var(--text); }
+
+.tab-nav.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-panel { display: none; }
+
+.tab-panel.active { display: block; }
+
+/* === Subject Prompt Input === */
+.subject-prompt-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    line-height: 1.6;
+    background: #fafbfd;
+    transition: border-color 0.15s;
+}
+
+.subject-prompt-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    background: white;
+}
+
 /* === Responsive === */
 /* === Auth Pages === */
 .auth-container {

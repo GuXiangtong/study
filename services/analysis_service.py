@@ -9,6 +9,7 @@ from config import (ANALYSIS_DIR, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
 from models.question import get_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
+from models.settings import get_subject_prompts
 
 SYSTEM_PROMPT = """你是一名上海市高三辅导老师，擅长分析学生错题。你需要严格按照以下四步流程输出分析结果。
 
@@ -134,9 +135,9 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.7,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
         },
-        timeout=120,
+        timeout=300,
     )
     resp.raise_for_status()
     data = resp.json()
@@ -234,33 +235,45 @@ class AnalysisService:
 
         sub_questions = [dict(sq) for sq in get_sub_questions_by_question(question_id)]
 
-        if self.mode in ('llm', 'deepseek'):
+        llm_error = None
+        if self.mode in ('llm', 'deepseek', 'doubao_seed'):
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
+                llm_error = str(e)
                 print(f"[LLM Error] {e}, falling back to template mode")
                 step1 = self._step1_template(question, sub_questions)
                 step2 = self._step2_template(question, sub_questions, step1)
                 step3 = self._step3_template(question, sub_questions, step1, step2)
                 step4 = self._step4_template(question, sub_questions, step1, step2)
-        elif self.mode == 'doubao_seed':
-            # TODO: implement Doubao Seed analysis
-            step1 = self._step1_template(question, sub_questions)
-            step2 = self._step2_template(question, sub_questions, step1)
-            step3 = self._step3_template(question, sub_questions, step1, step2)
-            step4 = self._step4_template(question, sub_questions, step1, step2)
         else:
             step1 = self._step1_template(question, sub_questions)
             step2 = self._step2_template(question, sub_questions, step1)
             step3 = self._step3_template(question, sub_questions, step1, step2)
             step4 = self._step4_template(question, sub_questions, step1, step2)
 
-        return self._save_analysis(question, step1, step2, step3, step4)
+        result = self._save_analysis(question, step1, step2, step3, step4)
+        result['llm_error'] = llm_error
+        return result
 
     def _run_llm_analysis(self, question, sub_questions):
         user_prompt = _build_analysis_prompt(question, sub_questions)
         api_key, api_url, model = self._get_llm_config()
-        llm_data = _call_llm(SYSTEM_PROMPT, user_prompt, api_key, api_url, model)
+
+        # Use custom system prompt if configured, otherwise default
+        from models.settings import get_setting
+        custom_sys = get_setting('system_prompt', '', user_id=self.user_id)
+        system_prompt = custom_sys if custom_sys else SYSTEM_PROMPT
+
+        # Inject subject-specific custom prompt
+        subject_name = question.get('subject_name', '')
+        if subject_name:
+            subject_prompts = get_subject_prompts(user_id=self.user_id)
+            custom = subject_prompts.get(subject_name, '')
+            if custom:
+                system_prompt += f"\n\n## 用户对{subject_name}学科的个性化要求\n{custom}"
+
+        llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
         return _parse_llm_response(llm_data)
 
     def _get_llm_config(self):
@@ -278,9 +291,10 @@ class AnalysisService:
         os.makedirs(dir_path, exist_ok=True)
         file_path = os.path.join(dir_path, filename)
 
-        self._write_analysis_file(file_path, question, step1, step2, step3, step4)
+        self._write_analysis_file(file_path, question, step1, step2, step3, step4, mode=self.mode)
         rel_path = f"{subject}/{filename}"
 
+        model_label = 'Doubao Seed' if self.mode == 'doubao_seed' else 'DeepSeek'
         analysis_id = create_analysis(
             sub_question_id=None,
             question_id=question['id'],
@@ -289,6 +303,7 @@ class AnalysisService:
             step2_data=json.dumps(step2, ensure_ascii=False),
             step3_data=json.dumps(step3, ensure_ascii=False),
             step4_data=json.dumps(step4, ensure_ascii=False),
+            model=model_label,
             user_id=self.user_id,
         )
         return {'id': analysis_id}
@@ -409,7 +424,7 @@ class AnalysisService:
             'exercises': [],
         }
 
-    def _write_analysis_file(self, file_path, question, step1, step2, step3, step4):
+    def _write_analysis_file(self, file_path, question, step1, step2, step3, step4, mode='deepseek'):
         content = f"""# 错题分析报告
 
 **学科**：{question.get('subject_name', '')}
@@ -471,7 +486,8 @@ class AnalysisService:
                 content += f"\n参考答案：{lv['answer']}\n"
             content += "\n"
 
-        content += "\n---\n*本报告由 DeepSeek AI 自动生成*\n"
+        model_name = 'Doubao Seed AI' if mode == 'doubao_seed' else 'DeepSeek AI'
+        content += f"\n---\n*本报告由 {model_name} 自动生成*\n"
 
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)

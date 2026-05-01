@@ -4,18 +4,19 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>📋 审核识别结果</h1>
+        <h1>审核识别结果</h1>
         <p>
             学科：<strong>{{ subject_name }}</strong> |
             考试：<strong>{{ exam_name }}</strong> |
             文件：<strong>{{ result.original_filename }}</strong>（{{ result.page_count }} 页） |
             识别到 <strong>{{ result.question_count }}</strong> 道题
         </p>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">
+            拖拽色块四边调整大小，拖拽四角对角线缩放，拖拽中间移动整块区域。
+        </p>
     </div>
     <div class="header-actions">
-        <button class="btn btn-primary" onclick="document.getElementById('confirmForm').submit()">
-            确认导入选中题目
-        </button>
+        <button class="btn btn-primary" id="btnConfirm">确认导入选中题目</button>
         <a href="{{ url_for('paper.upload') }}" class="btn btn-secondary">放弃重传</a>
     </div>
 </div>
@@ -29,44 +30,103 @@
 {% endif %}
 
 {% if result.questions %}
-<form id="confirmForm" method="POST" action="{{ url_for('paper.confirm', task_id=task_id) }}">
-    <div class="paper-review-toolbar" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
-        <button type="button" class="btn btn-small btn-primary" onclick="selectAll()">全选</button>
-        <button type="button" class="btn btn-small btn-secondary" onclick="deselectAll()">取消全选</button>
-        <span style="color:var(--text-muted);font-size:14px;">
-            已选择 <strong id="selectedCount">{{ result.question_count }}</strong> / {{ result.question_count }} 道
-        </span>
-    </div>
+{% set questions_by_page = {} %}
+{% for q in result.questions %}
+    {% set p = q.page | default(1) %}
+    {% if p not in questions_by_page %}{% set _ = questions_by_page.update({p: []}) %}{% endif %}
+    {% set _ = questions_by_page[p].append(q) %}
+{% endfor %}
+{% set pages = questions_by_page.keys() | sort %}
+{% set page_img_map = {} %}
+{% if result.page_image_names %}
+    {% for img_name in result.page_image_names %}
+        {% set _p = loop.index %}{% set _ = page_img_map.update({_p: img_name}) %}
+    {% endfor %}
+{% else %}
+    {% for p in pages %}
+        {% set _ = page_img_map.update({p: 'page_' ~ '%03d' % p ~ '.png'}) %}
+    {% endfor %}
+{% endif %}
+{% set first_page = pages | first %}
 
-    <div class="paper-questions-grid">
-        {% for q in result.questions %}
-        {% set idx = loop.index0 %}
-        <div class="paper-question-card" id="qcard-{{ idx }}">
-            <div class="pq-header">
-                <label class="pq-checkbox">
-                    <input type="checkbox" name="selected" value="{{ idx }}" checked
-                           onchange="updateCount()">
-                </label>
-                <div class="pq-number">
-                    <span>第 {{ q.page }} 页</span>
-                    <input type="text" name="question_number" value="{{ q.question_number }}"
-                           class="pq-number-input" style="width:60px;text-align:center;">
+<form id="confirmForm" method="POST" action="{{ url_for('paper.confirm', task_id=task_id) }}">
+    <input type="hidden" name="question_positions" id="questionPositionsInput" value="{}">
+
+    {% if pages | length > 1 %}
+    <div class="adjust-page-tabs">
+        {% for p in pages %}
+        <button type="button" class="adjust-page-tab{% if loop.first %} active{% endif %}"
+                data-page="{{ p }}">第 {{ p }} 页</button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="adjust-main">
+        <div class="adjust-page-area">
+            <div class="adjust-page-wrapper" id="pageWrapper">
+                <img class="adjust-page-img" id="pageImage"
+                     src="{{ url_for('paper.serve_page_image', task_id=task_id, filename=page_img_map[first_page]) }}"
+                     alt="试卷第 {{ first_page }} 页">
+                <div class="adjust-overlay" id="questionOverlay">
+                    {% for q in result.questions %}
+                    {% set idx = loop.index0 %}
+                    {% set p = q.page | default(1) %}
+                    {% set xs = q.crop_x_start | default(0) %}
+                    {% set xe = q.crop_x_end | default(100) %}
+                    {% set ys = q.crop_y_start | default(q.y_start) %}
+                    {% set ye = q.crop_y_end | default(q.y_end) %}
+                    <div class="adjust-q-zone"
+                         id="zone-{{ idx }}"
+                         data-index="{{ idx }}"
+                         data-page="{{ p }}"
+                         data-x-start="{{ xs }}" data-x-end="{{ xe }}"
+                         data-y-start="{{ ys }}" data-y-end="{{ ye }}"
+                         style="left: {{ xs }}%; width: {{ '%.1f' | format(xe - xs) if xe > xs else 5 }}%;
+                                top: {{ ys }}%; height: {{ '%.1f' | format(ye - ys) if ye > ys else 3 }}%;
+                                {% if p != first_page %}display: none;{% endif %}">
+                        <span class="adjust-q-label">{{ q.question_number }}</span>
+                        <div class="adjust-q-corner" style="bottom:-5px;left:-5px;"></div>
+                        <div class="adjust-q-corner" style="bottom:-5px;right:-5px;"></div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-
-            {% if q.image %}
-            <div class="pq-image">
-                <img src="{{ url_for('paper.serve_temp', task_id=task_id, subdir='questions', filename=q.image) }}"
-                     alt="第 {{ q.question_number }} 题" loading="lazy">
-            </div>
-            {% endif %}
-
-            <div class="pq-content">
-                <textarea name="stem" rows="4" class="pq-stem-input"
-                          placeholder="题目内容（可编辑）">{{ q.content }}</textarea>
-            </div>
         </div>
-        {% endfor %}
+
+        <div class="adjust-detail-list" id="detailList">
+            {% for q in result.questions %}
+            {% set idx = loop.index0 %}
+            {% set p = q.page | default(1) %}
+            <div class="adjust-detail-card"
+                 id="card-{{ idx }}"
+                 data-index="{{ idx }}"
+                 data-page="{{ p }}"
+                 style="{% if p != first_page %}display: none;{% endif %}">
+                <div class="adc-header">
+                    <label class="adc-checkbox">
+                        <input type="checkbox" name="selected" value="{{ idx }}" checked>
+                    </label>
+                    <div class="adc-number">
+                        <span class="adc-page-tag">第 {{ p }} 页</span>
+                        <span style="font-size:12px;color:var(--text-muted);">题号</span>
+                        <input type="text" name="question_number" value="{{ q.question_number }}"
+                               class="adc-number-input">
+                    </div>
+                </div>
+
+                <div class="adc-content">
+                    <label class="adc-field-label">题目内容（可编辑）</label>
+                    <textarea name="stem" rows="4" class="adc-stem-input"
+                              placeholder="题目内容">{{ q.content }}</textarea>
+                </div>
+
+                <div class="adc-preview">
+                    <span class="adc-preview-label">裁剪预览</span>
+                    <canvas class="adc-canvas" id="canvas-{{ idx }}"></canvas>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="form-actions" style="margin-top:24px;">
@@ -85,20 +145,309 @@
 
 {% block scripts %}
 <script>
-function updateCount() {
-    const checked = document.querySelectorAll('input[name="selected"]:checked').length;
-    const total = document.querySelectorAll('input[name="selected"]').length;
-    document.getElementById('selectedCount').textContent = checked;
-}
+(function() {
+    const questions = {{ result.questions | tojson }};
+    const pageCount = {{ result.page_count }};
+    const taskId = '{{ task_id }}';
 
-function selectAll() {
-    document.querySelectorAll('input[name="selected"]').forEach(cb => cb.checked = true);
-    updateCount();
-}
+    // Build page → image URL map
+    const pageImages = {};
+    {% if result.page_image_names %}
+    {% for img_name in result.page_image_names %}
+    pageImages[{{ loop.index }}] = '{{ url_for('paper.serve_page_image', task_id=task_id, filename=img_name) }}';
+    {% endfor %}
+    {% else %}
+    {% for i in range(1, result.page_count + 1) %}
+    pageImages[{{ i }}] = '{{ url_for('paper.serve_page_image', task_id=task_id, filename='page_' ~ '%03d' % i ~ '.png') }}';
+    {% endfor %}
+    {% endif %}
 
-function deselectAll() {
-    document.querySelectorAll('input[name="selected"]').forEach(cb => cb.checked = false);
-    updateCount();
-}
+    const pageSet = new Set(questions.map(q => q.page || 1));
+    const sortedPages = Array.from(pageSet).sort((a, b) => a - b);
+    let currentPage = sortedPages[0] || 1;
+
+    // positions: { index: {x_start, x_end, y_start, y_end} } — all in %
+    const positions = {};
+    questions.forEach((q, i) => {
+        positions[i] = {
+            x_start: q.crop_x_start || 0,
+            x_end: q.crop_x_end || 100,
+            y_start: q.crop_y_start || q.y_start,
+            y_end: q.crop_y_end || q.y_end
+        };
+    });
+
+    const pageImage = document.getElementById('pageImage');
+    const overlay = document.getElementById('questionOverlay');
+    const positionInput = document.getElementById('questionPositionsInput');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const confirmForm = document.getElementById('confirmForm');
+
+    // ── Page switching ──
+    document.querySelectorAll('.adjust-page-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.adjust-page-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            switchPage(parseInt(this.dataset.page));
+        });
+    });
+
+    function switchPage(page) {
+        currentPage = page;
+        pageImage.src = pageImages[page];
+        document.querySelectorAll('.adjust-q-zone').forEach(zone => {
+            zone.style.display = parseInt(zone.dataset.page) === page ? '' : 'none';
+        });
+        document.querySelectorAll('.adjust-detail-card').forEach(card => {
+            card.style.display = parseInt(card.dataset.page) === page ? '' : 'none';
+        });
+        clearSelection();
+    }
+
+    // ── Selection (bidirectional) ──
+    let selectedIndex = null;
+
+    function selectQuestion(idx) {
+        clearSelection();
+        selectedIndex = idx;
+        const zone = document.getElementById('zone-' + idx);
+        if (zone) zone.classList.add('active');
+        const card = document.getElementById('card-' + idx);
+        if (card) {
+            card.classList.add('active');
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        drawPreview(idx);
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.adjust-q-zone.active').forEach(z => z.classList.remove('active'));
+        document.querySelectorAll('.adjust-detail-card.active').forEach(c => c.classList.remove('active'));
+        selectedIndex = null;
+    }
+
+    // Click on zone → select
+    overlay.addEventListener('click', function(e) {
+        const zone = e.target.closest('.adjust-q-zone');
+        if (!zone) return;
+        selectQuestion(parseInt(zone.dataset.index));
+    });
+
+    // Click on detail card → select zone (bidirectional)
+    document.getElementById('detailList').addEventListener('click', function(e) {
+        const card = e.target.closest('.adjust-detail-card');
+        if (!card) return;
+        // Don't re-select when interacting with inputs
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        const idx = parseInt(card.dataset.index);
+        selectQuestion(idx);
+        // Also scroll the zone into view
+        const zone = document.getElementById('zone-' + idx);
+        if (zone) zone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    // ── Canvas preview ──
+    function drawPreview(idx) {
+        const canvas = document.getElementById('canvas-' + idx);
+        if (!canvas) return;
+        const pos = positions[idx];
+        const ctx = canvas.getContext('2d');
+        if (!pageImage.complete || !pageImage.naturalWidth) {
+            pageImage.addEventListener('load', function h() {
+                pageImage.removeEventListener('load', h);
+                drawPreview(idx);
+            }, { once: true });
+            return;
+        }
+        const imgW = pageImage.naturalWidth;
+        const imgH = pageImage.naturalHeight;
+        const sx = Math.max(0, imgW * pos.x_start / 100);
+        const sw = Math.max(1, imgW * (pos.x_end - pos.x_start) / 100);
+        const sy = Math.max(0, imgH * pos.y_start / 100);
+        const sh = Math.max(1, imgH * (pos.y_end - pos.y_start) / 100);
+        const displayW = Math.min(360, sw);
+        const scale = displayW / sw;
+        const displayH = Math.max(1, sh * scale);
+        canvas.width = sw;
+        canvas.height = sh;
+        canvas.style.width = displayW + 'px';
+        canvas.style.height = displayH + 'px';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(pageImage, sx, sy, sw, sh, 0, 0, sw, sh);
+    }
+
+    function refreshPreview() {
+        if (selectedIndex !== null) drawPreview(selectedIndex);
+    }
+
+    pageImage.addEventListener('load', function() {
+        refreshPreview();
+        updateAllZonePositions();
+    });
+
+    // ── Drag handling ──
+    const EDGE = 16; // px from edge for resize
+    let dragState = null;
+
+    function getDragMode(zone, clientX, clientY) {
+        const rect = zone.getBoundingClientRect();
+        const rx = clientX - rect.left;
+        const ry = clientY - rect.top;
+        const w = rect.width, h = rect.height;
+        const nearL = rx < EDGE;
+        const nearR = rx > w - EDGE;
+        const nearT = ry < EDGE;
+        const nearB = ry > h - EDGE;
+        const corner = (nearL || nearR) && (nearT || nearB);
+        const edge = (nearL || nearR || nearT || nearB) && !corner;
+        const inside = rx >= 0 && rx <= w && ry >= 0 && ry <= h;
+        return { corner, edge, inside, nearL, nearR, nearT, nearB,
+                 handle: corner ? (nearT ? 'n' : 's') + (nearL ? 'w' : 'e')
+                       : edge ? (nearT ? 'n' : nearB ? 's' : nearL ? 'w' : 'e')
+                       : (inside ? 'move' : null) };
+    }
+
+    const CURSOR_MAP = {
+        'nw': 'nw-resize', 'ne': 'ne-resize', 'sw': 'sw-resize', 'se': 'se-resize',
+        'n': 'n-resize', 's': 's-resize', 'w': 'w-resize', 'e': 'e-resize',
+        'move': 'move'
+    };
+
+    document.addEventListener('mousedown', function(e) {
+        const zone = e.target.closest('.adjust-q-zone');
+        if (!zone) return;
+        const idx = parseInt(zone.dataset.index);
+        const mode = getDragMode(zone, e.clientX, e.clientY);
+        if (!mode || !mode.handle) return;
+
+        selectQuestion(idx);
+
+        const imgRect = pageImage.getBoundingClientRect();
+        const imgW = imgRect.width;
+        const imgH = imgRect.height;
+        if (!imgW || !imgH) return;
+
+        dragState = {
+            index: idx,
+            handle: mode.handle,
+            startX: e.clientX,
+            startY: e.clientY,
+            startPos: { ...positions[idx] },
+            imgW: imgW,
+            imgH: imgH,
+        };
+        document.body.style.cursor = CURSOR_MAP[mode.handle] || 'move';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!dragState) {
+            // Cursor hint
+            const zone = e.target.closest('.adjust-q-zone');
+            if (zone) {
+                const mode = getDragMode(zone, e.clientX, e.clientY);
+                document.body.style.cursor = mode.handle ? (CURSOR_MAP[mode.handle] || 'default') : 'default';
+            } else {
+                document.body.style.cursor = '';
+            }
+            return;
+        }
+
+        const dxPx = e.clientX - dragState.startX;
+        const dyPx = e.clientY - dragState.startY;
+        const dxPct = dxPx / dragState.imgW * 100;
+        const dyPct = dyPx / dragState.imgH * 100;
+        const pos = positions[dragState.index];
+        const sp = dragState.startPos;
+        const handle = dragState.handle;
+
+        // X-axis changes
+        if (handle.includes('w')) {
+            pos.x_start = clamp(sp.x_start + dxPct, 0, pos.x_end - 2);
+        } else if (handle.includes('e')) {
+            pos.x_end = clamp(sp.x_end + dxPct, pos.x_start + 2, 100);
+        } else if (handle === 'move') {
+            const newW = sp.x_end - sp.x_start;
+            pos.x_start = clamp(sp.x_start + dxPct, 0, 100 - newW);
+            pos.x_end = pos.x_start + newW;
+        }
+
+        // Y-axis changes
+        if (handle.includes('n')) {
+            pos.y_start = clamp(sp.y_start + dyPct, 0, pos.y_end - 2);
+        } else if (handle.includes('s')) {
+            pos.y_end = clamp(sp.y_end + dyPct, pos.y_start + 2, 100);
+        } else if (handle === 'move') {
+            const newH = sp.y_end - sp.y_start;
+            pos.y_start = clamp(sp.y_start + dyPct, 0, 100 - newH);
+            pos.y_end = pos.y_start + newH;
+        }
+
+        // Round
+        for (const k of ['x_start', 'x_end', 'y_start', 'y_end']) {
+            pos[k] = Math.round(pos[k] * 10) / 10;
+        }
+
+        updateZonePosition(dragState.index);
+        refreshPreview();
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (dragState) {
+            updatePositionInput();
+            dragState = null;
+            document.body.style.cursor = '';
+        }
+    });
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    function updateZonePosition(idx) {
+        const zone = document.getElementById('zone-' + idx);
+        if (!zone) return;
+        const p = positions[idx];
+        zone.style.left = p.x_start + '%';
+        zone.style.width = Math.max(1, p.x_end - p.x_start) + '%';
+        zone.style.top = p.y_start + '%';
+        zone.style.height = Math.max(1, p.y_end - p.y_start) + '%';
+        zone.dataset.xStart = p.x_start; zone.dataset.xEnd = p.x_end;
+        zone.dataset.yStart = p.y_start; zone.dataset.yEnd = p.y_end;
+    }
+
+    function updateAllZonePositions() {
+        for (const idx in positions) updateZonePosition(parseInt(idx));
+    }
+
+    function updatePositionInput() {
+        positionInput.value = JSON.stringify(positions);
+    }
+
+    // ── Confirm ──
+    btnConfirm.addEventListener('click', function(e) {
+        e.preventDefault();
+        updatePositionInput();
+        confirmForm.submit();
+    });
+
+    // ── Init ──
+    updatePositionInput();
+
+    pageImage.addEventListener('load', function() {
+        document.querySelectorAll('.adc-canvas').forEach(canvas => {
+            const idx = parseInt(canvas.id.replace('canvas-', ''));
+            if (positions[idx]) drawPreview(idx);
+        });
+    });
+
+    setTimeout(function() {
+        if (pageImage.complete && pageImage.naturalWidth) {
+            document.querySelectorAll('.adc-canvas').forEach(canvas => {
+                const idx = parseInt(canvas.id.replace('canvas-', ''));
+                if (positions[idx]) drawPreview(idx);
+            });
+        }
+    }, 300);
+
+})();
 </script>
 {% endblock %}

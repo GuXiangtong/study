@@ -23,6 +23,24 @@
 </div>
 {% endif %}
 
+{% if question.student_answer or question.error_reason %}
+<div class="card" style="border-left: 3px solid var(--danger);">
+    <h2>错题信息</h2>
+    {% if question.student_answer %}
+    <div class="field-item">
+        <strong>学生错误答案：</strong>
+        <span class="wrong-answer">{{ question.student_answer }}</span>
+    </div>
+    {% endif %}
+    {% if question.error_reason %}
+    <div class="field-item" style="margin-top:8px;">
+        <strong>出错原因：</strong>
+        <span>{{ question.error_reason }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% if question.image_path %}
 <div class="card">
     <h2>题目图片</h2>
@@ -121,14 +139,21 @@
             <thead>
                 <tr>
                     <th>分析时间</th>
+                    <th>模型</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody>
                 {% for a in analyses %}
                 <tr>
-                    <td>{{ a.created_at }}</td>
-                    <td><a href="{{ url_for('analysis.view_analysis', analysis_id=a.id) }}" class="btn btn-small">查看报告</a></td>
+                    <td>{{ a.created_at|localtime }}</td>
+                    <td>{{ a.model or '—' }}</td>
+                    <td>
+                        <a href="{{ url_for('analysis.view_analysis', analysis_id=a.id) }}" class="btn btn-small">查看报告</a>
+                        <form method="POST" action="{{ url_for('analysis.delete_analysis_route', analysis_id=a.id) }}" style="display:inline" onsubmit="return confirm('确定删除这条分析记录吗？关联的报告文件也将被删除。')">
+                            <button type="submit" class="btn btn-small btn-danger">删除</button>
+                        </form>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

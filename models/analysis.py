@@ -3,12 +3,12 @@ from database import get_db
 
 def create_analysis(sub_question_id=None, question_id=None, file_path=None,
                     step1_data=None, step2_data=None, step3_data=None, step4_data=None,
-                    user_id=None):
+                    model='', user_id=None):
     db = get_db()
     db.execute(
         "INSERT INTO analysis_results (sub_question_id, question_id, file_path, "
-        "step1_data, step2_data, step3_data, step4_data, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (sub_question_id, question_id, file_path, step1_data, step2_data, step3_data, step4_data, user_id)
+        "step1_data, step2_data, step3_data, step4_data, model, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (sub_question_id, question_id, file_path, step1_data, step2_data, step3_data, step4_data, model, user_id)
     )
     db.commit()
     return db.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -47,3 +47,23 @@ def get_analyses_by_question(question_id):
         "SELECT * FROM analysis_results WHERE question_id = ? ORDER BY created_at DESC",
         (question_id,)
     ).fetchall()
+
+
+def delete_analysis(analysis_id, user_id=None):
+    """Delete an analysis record and return its file_path for cleanup."""
+    db = get_db()
+    if user_id is not None:
+        row = db.execute(
+            "SELECT file_path FROM analysis_results WHERE id = ? AND user_id = ?",
+            (analysis_id, user_id)
+        ).fetchone()
+    else:
+        row = db.execute(
+            "SELECT file_path FROM analysis_results WHERE id = ?",
+            (analysis_id,)
+        ).fetchone()
+    if not row:
+        return None
+    db.execute("DELETE FROM analysis_results WHERE id = ?", (analysis_id,))
+    db.commit()
+    return row['file_path']

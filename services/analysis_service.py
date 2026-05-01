@@ -9,68 +9,22 @@ from config import (ANALYSIS_DIR, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
 from models.question import get_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
+from models.settings import get_subject_prompts
 
-SYSTEM_PROMPT = """你是一名上海市高三辅导老师，擅长分析学生错题。你需要严格按照以下四步流程输出分析结果。
+_PROMPT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prompts')
 
-## 核心原则
-- 所有知识点严格限定在上海市高考考纲范围内
-- 绝不直接给出答案，重点教授思考方式和解题路径
-- 用苏格拉底式的提问引导学生自己找到答案
-- 数学公式使用 LaTeX 语法（$...$ 行内，$$...$$ 行间）
-- 用通俗的语言解释抽象概念
 
-## 输出格式
-请严格按照以下 JSON 格式输出（不要输出其他内容）：
+def _load_system_prompt():
+    """Load the default system prompt from file."""
+    path = os.path.join(_PROMPT_DIR, 'system_prompt.txt')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    # Fallback in case file is missing
+    return "你是一名上海市高三辅导老师，擅长分析学生错题。请用JSON格式输出四步分析结果。"
 
-```json
-{
-  "step1": {
-    "knowledge_points": "具体的知识点（如：二次函数在闭区间上的最值问题）",
-    "syllabus_section": "所属考纲板块",
-    "ai_analysis": "详细分析：1)题目考察什么 2)学生错误根源 3)需要补齐的知识点"
-  },
-  "step2": {
-    "weakness_analysis": "从概念层面、方法层面、思维层面分别诊断薄弱点，梳理前置知识→核心知识→拓展应用的知识链条",
-    "knowledge_framework": "知识框架描述",
-    "comparison_table": "易混淆概念对比（如有）"
-  },
-  "step3": {
-    "steps": [
-      {"name": "审题", "guidance": "引导学生审题的提问"},
-      {"name": "切入点", "guidance": "帮助学生找到切入点的提问"},
-      {"name": "路径推演", "guidance": "一步一步推导的思路框架"},
-      {"name": "易错提醒", "guidance": "这类题的常见错误"},
-      {"name": "验证方法", "guidance": "如何检查答案正确性"}
-    ],
-    "note": "以上每一步请学生先自己思考，再看提示"
-  },
-  "step4": {
-    "exercises": [
-      {
-        "difficulty": "基础题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      },
-      {
-        "difficulty": "提高题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      },
-      {
-        "difficulty": "难题",
-        "content": "题目内容（含LaTeX公式）",
-        "answer": "参考答案",
-        "solution_steps": "解题步骤",
-        "knowledge_points": "考察知识点"
-      }
-    ]
-  }
-}
-```"""
+
+SYSTEM_PROMPT = _load_system_prompt()
 
 
 def _build_analysis_prompt(question, sub_questions):
@@ -85,6 +39,14 @@ def _build_analysis_prompt(question, sub_questions):
     question_text = question.get('stem') or ''
     if question_text:
         prompt_parts.append(f"\n## 题目内容\n{question_text}")
+
+    # Brief factual context — no interpretation requested
+    q_student_answer = question.get('student_answer') or ''
+    q_error_reason = question.get('error_reason') or ''
+    if q_student_answer:
+        prompt_parts.append(f"\n学生当时的作答：{q_student_answer}")
+    if q_error_reason:
+        prompt_parts.append(f"学生自述原因：{q_error_reason}")
 
     prompt_parts.append(f"\n## 子问题及学生作答情况")
     prompt_parts.append(f"本题共 {len(sub_questions)} 个子问题。\n")
@@ -120,33 +82,85 @@ def _build_analysis_prompt(question, sub_questions):
 
 
 def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
-    """Call an LLM API and return parsed JSON."""
-    resp = requests.post(
-        api_url,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.7,
-            "max_tokens": 4096,
-        },
-        timeout=120,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    content = data["choices"][0]["message"]["content"]
+    """Call DeepSeek LLM via Anthropic-compatible Messages API, return parsed JSON."""
+    import datetime, os
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
 
-    # Extract JSON from the response (may be wrapped in ```json ... ```)
-    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
-    if json_match:
-        content = json_match.group(1)
-    return json.loads(content)
+    def log(msg):
+        with open(log_path, 'a') as f:
+            f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+
+    log(f"Calling {api_url} model={model}")
+    log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
+
+    try:
+        resp = requests.post(
+            api_url,
+            headers={
+                "x-api-key": api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "system": system_prompt,
+                "messages": [
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 8192,
+                "thinking": {"type": "disabled"},
+            },
+            timeout=120,
+        )
+        log(f"HTTP {resp.status_code}")
+        resp.raise_for_status()
+        data = resp.json()
+
+        blocks = data.get("content", [])
+        log(f"Response blocks: {len(blocks)}, types: {[b.get('type') for b in blocks]}")
+
+        content = ""
+        for block in blocks:
+            if block.get("type") == "text":
+                content += block.get("text", "")
+
+        if not content:
+            log(f"EMPTY CONTENT! Raw data keys: {list(data.keys())}, blocks: {blocks}")
+            raise ValueError(f"API 返回了空内容。状态码: {resp.status_code}, stop_reason: {data.get('stop_reason')}")
+
+        log(f"Content length: {len(content)}, preview: {content[:300]}")
+
+        # Extract JSON from the response
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(1)
+            log(f"Extracted from markdown, new length: {len(content)}")
+
+        result = _safe_json_parse(content)
+        log(f"JSON parsed OK, top keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
+        return result
+
+    except Exception as e:
+        log(f"EXCEPTION: {type(e).__name__}: {e}")
+        raise
+
+
+def _safe_json_parse(text):
+    """Parse JSON, fixing LaTeX backslash escapes that break the parser."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Fix ALL backslash sequences that aren't valid JSON escapes.
+    # Valid JSON escapes: \" \\ \/ \b \f \n \r \t \uXXXX
+    # Everything else (LaTeX commands like \frac, \(, \), \sin, etc.)
+    # needs its backslash doubled to become a literal backslash in JSON.
+    text = re.sub(
+        r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})',
+        r'\\\\', text
+    )
+    return json.loads(text)
 
 
 def _parse_llm_response(llm_data):
@@ -171,6 +185,8 @@ def _parse_llm_response(llm_data):
         'title': '第三步：引导思考，给出解题路径',
         'steps': llm_data.get('step3', {}).get('steps', []),
         'note': llm_data.get('step3', {}).get('note', '以上每一步请学生先自己思考，再看提示。绝不直接给出答案。'),
+        'correct_answer': llm_data.get('step3', {}).get('correct_answer', ''),
+        'solution_steps': llm_data.get('step3', {}).get('solution_steps', ''),
     }
 
     step4_raw = llm_data.get('step4', {})
@@ -234,34 +250,74 @@ class AnalysisService:
 
         sub_questions = [dict(sq) for sq in get_sub_questions_by_question(question_id)]
 
-        if self.mode in ('llm', 'deepseek'):
+        llm_error = None
+        if self.mode in ('llm', 'deepseek', 'doubao_seed'):
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
-                print(f"[LLM Error] {e}, falling back to template mode")
+                import traceback, os, datetime
+                tb = traceback.format_exc()
+                llm_error = f"{type(e).__name__}: {e}"
+                # Write debug log to file since Flask reloader eats stdout
+                log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+                with open(log_path, 'a') as f:
+                    f.write(f"[{datetime.datetime.now().isoformat()}] LLM ERROR: {llm_error}\n{tb}\n")
                 step1 = self._step1_template(question, sub_questions)
                 step2 = self._step2_template(question, sub_questions, step1)
                 step3 = self._step3_template(question, sub_questions, step1, step2)
                 step4 = self._step4_template(question, sub_questions, step1, step2)
-        elif self.mode == 'doubao_seed':
-            # TODO: implement Doubao Seed analysis
-            step1 = self._step1_template(question, sub_questions)
-            step2 = self._step2_template(question, sub_questions, step1)
-            step3 = self._step3_template(question, sub_questions, step1, step2)
-            step4 = self._step4_template(question, sub_questions, step1, step2)
         else:
             step1 = self._step1_template(question, sub_questions)
             step2 = self._step2_template(question, sub_questions, step1)
             step3 = self._step3_template(question, sub_questions, step1, step2)
             step4 = self._step4_template(question, sub_questions, step1, step2)
 
-        return self._save_analysis(question, step1, step2, step3, step4)
+        result = self._save_analysis(question, step1, step2, step3, step4)
+        result['llm_error'] = llm_error
+        return result
 
     def _run_llm_analysis(self, question, sub_questions):
-        user_prompt = _build_analysis_prompt(question, sub_questions)
+        import datetime, os
+        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+
+        def log(msg):
+            with open(log_path, 'a') as f:
+                f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+
+        log("_run_llm_analysis START")
+
+        try:
+            user_prompt = _build_analysis_prompt(question, sub_questions)
+            log(f"Built user prompt, length: {len(user_prompt)}")
+        except Exception as e:
+            log(f"Failed to build prompt: {e}")
+            raise
+
         api_key, api_url, model = self._get_llm_config()
-        llm_data = _call_llm(SYSTEM_PROMPT, user_prompt, api_key, api_url, model)
-        return _parse_llm_response(llm_data)
+        log(f"Config: api_url={api_url}, model={model}, key_ok={bool(api_key)}")
+
+        # Use custom system prompt if configured, otherwise default
+        from models.settings import get_setting
+        custom_sys = get_setting('system_prompt', '', user_id=self.user_id)
+        system_prompt = custom_sys if custom_sys else SYSTEM_PROMPT
+        log(f"System prompt length: {len(system_prompt)}, from_custom: {bool(custom_sys)}")
+
+        # Inject subject-specific custom prompt
+        subject_name = question.get('subject_name', '')
+        if subject_name:
+            subject_prompts = get_subject_prompts(user_id=self.user_id)
+            custom = subject_prompts.get(subject_name, '')
+            if custom:
+                system_prompt += f"\n\n## 用户对{subject_name}学科的个性化要求\n{custom}"
+                log(f"Added subject custom prompt, total system length: {len(system_prompt)}")
+
+        log("Calling _call_llm...")
+        llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+        log(f"_call_llm returned, keys: {list(llm_data.keys())}")
+
+        result = _parse_llm_response(llm_data)
+        log("_parse_llm_response OK")
+        return result
 
     def _get_llm_config(self):
         """Return (api_key, api_url, model) for the current analysis method."""
@@ -278,9 +334,10 @@ class AnalysisService:
         os.makedirs(dir_path, exist_ok=True)
         file_path = os.path.join(dir_path, filename)
 
-        self._write_analysis_file(file_path, question, step1, step2, step3, step4)
+        self._write_analysis_file(file_path, question, step1, step2, step3, step4, mode=self.mode)
         rel_path = f"{subject}/{filename}"
 
+        model_label = 'Doubao Seed' if self.mode == 'doubao_seed' else 'DeepSeek'
         analysis_id = create_analysis(
             sub_question_id=None,
             question_id=question['id'],
@@ -289,6 +346,7 @@ class AnalysisService:
             step2_data=json.dumps(step2, ensure_ascii=False),
             step3_data=json.dumps(step3, ensure_ascii=False),
             step4_data=json.dumps(step4, ensure_ascii=False),
+            model=model_label,
             user_id=self.user_id,
         )
         return {'id': analysis_id}
@@ -409,7 +467,7 @@ class AnalysisService:
             'exercises': [],
         }
 
-    def _write_analysis_file(self, file_path, question, step1, step2, step3, step4):
+    def _write_analysis_file(self, file_path, question, step1, step2, step3, step4, mode='deepseek'):
         content = f"""# 错题分析报告
 
 **学科**：{question.get('subject_name', '')}
@@ -454,6 +512,22 @@ class AnalysisService:
 
 {step3.get('note', '')}
 
+"""
+        if step3.get('correct_answer'):
+            content += f"""
+### 正确答案
+
+{step3['correct_answer']}
+
+"""
+        if step3.get('solution_steps'):
+            content += f"""
+### 解题步骤
+
+{step3['solution_steps']}
+
+"""
+        content += f"""
 ---
 
 ## {step4['title']}
@@ -471,7 +545,8 @@ class AnalysisService:
                 content += f"\n参考答案：{lv['answer']}\n"
             content += "\n"
 
-        content += "\n---\n*本报告由 DeepSeek AI 自动生成*\n"
+        model_name = 'Doubao Seed AI' if mode == 'doubao_seed' else 'DeepSeek AI'
+        content += f"\n---\n*本报告由 {model_name} 自动生成*\n"
 
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)

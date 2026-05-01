@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import uuid
@@ -11,7 +12,8 @@ from models.exam import create_exam, get_exam, get_all_exams
 from models.question import create_question
 from models.subject import get_all_subjects
 from services.paper_service import (cleanup_old_tasks, cleanup_task,
-                                    load_result, process_paper, save_result)
+                                    load_result, process_paper, recrop_question,
+                                    save_result)
 
 paper_bp = Blueprint('paper', __name__)
 
@@ -104,6 +106,12 @@ def confirm(task_id):
     selected_indices = request.form.getlist('selected')
     question_numbers = request.form.getlist('question_number')
     stems = request.form.getlist('stem')
+    question_positions_raw = request.form.get('question_positions', '{}')
+
+    try:
+        question_positions = json.loads(question_positions_raw)
+    except (json.JSONDecodeError, TypeError):
+        question_positions = {}
 
     subject_id = result.get('subject_id')
     exam_id = result.get('exam_id')
@@ -127,14 +135,31 @@ def confirm(task_id):
         if idx < 0 or idx >= len(questions):
             continue
 
+        q = questions[idx]
+
         q_num = question_numbers[idx].strip() if idx < len(question_numbers) else ''
         if not q_num:
-            q_num = questions[idx].get('question_number', str(idx + 1))
+            q_num = q.get('question_number', str(idx + 1))
 
         stem = stems[idx].strip() if idx < len(stems) else ''
 
+        # Apply user-adjusted crop positions if provided
+        pos_key = str(idx)
+        if pos_key in question_positions:
+            pos = question_positions[pos_key]
+            new_y_start = float(pos.get('y_start', q.get('crop_y_start', q.get('y_start', 0))))
+            new_y_end = float(pos.get('y_end', q.get('crop_y_end', q.get('y_end', 100))))
+            new_x_start = float(pos.get('x_start', q.get('crop_x_start', 0)))
+            new_x_end = float(pos.get('x_end', q.get('crop_x_end', 100)))
+            page_num = q.get('page', 1)
+            new_img = recrop_question(task_id, page_num,
+                                       new_y_start, new_y_end, idx,
+                                       x_start=new_x_start, x_end=new_x_end)
+            if new_img:
+                q['image'] = new_img
+
         image_path = None
-        q_img_name = questions[idx].get('image', '')
+        q_img_name = q.get('image', '')
         if q_img_name:
             src = os.path.join(questions_dir, q_img_name)
             if os.path.isfile(src):
@@ -144,7 +169,7 @@ def confirm(task_id):
                 shutil.copy(src, os.path.join(dest_dir, dest_file))
                 image_path = f"{subject_name}/{exam_name}/{dest_file}"
 
-        stem_value = stem if stem else questions[idx].get('content', '').strip()
+        stem_value = stem if stem else q.get('content', '').strip()
         create_question(exam_id, q_num, stem=stem_value or None, image_path=image_path, user_id=user_id)
         imported += 1
 
@@ -156,4 +181,10 @@ def confirm(task_id):
 @paper_bp.route('/paper/temp/<task_id>/<subdir>/<filename>')
 def serve_temp(task_id, subdir, filename):
     dir_path = os.path.join(PAPER_TEMP_DIR, task_id, subdir)
+    return send_from_directory(dir_path, filename)
+
+
+@paper_bp.route('/paper/temp/<task_id>/pages/<filename>')
+def serve_page_image(task_id, filename):
+    dir_path = os.path.join(PAPER_TEMP_DIR, task_id, 'pages')
     return send_from_directory(dir_path, filename)

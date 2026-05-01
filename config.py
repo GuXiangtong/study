@@ -27,14 +27,14 @@ if os.path.exists(_apikey_path):
 DEEPSEEK_API_KEY = _apikeys.get('DEEPSEEK_API_KEY', os.environ.get('DEEPSEEK_API_KEY', ''))
 DOUBAO_API_KEY = _apikeys.get('DOUBAO_API_KEY', os.environ.get('DOUBAO_API_KEY', ''))
 
-# DeepSeek
-DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'
-DEEPSEEK_MODEL = 'deepseek-chat'
+# DeepSeek (Anthropic-compatible endpoint)
+DEEPSEEK_API_URL = 'https://api.deepseek.com/anthropic/v1/messages'
+DEEPSEEK_MODEL = 'deepseek-v4-pro'
 
 # Doubao Seed (ByteDance Ark)
 DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
 DOUBAO_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
-DOUBAO_MODEL = 'doubao-seed-1-6'
+DOUBAO_MODEL = 'doubao-seed-2-0-pro-260215'
 DOUBAO_VISION_MODEL = 'doubao-seed-1-6-vision-250815'
 
 # Legacy alias (used by existing code)

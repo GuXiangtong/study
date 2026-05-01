@@ -1,3 +1,6 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from flask import Flask, render_template, send_from_directory, session, g
 from config import SECRET_KEY, BASE_DIR, SUBJECTS
 from database import init_app as init_db
@@ -7,9 +10,23 @@ from models.subject import get_all_subjects
 from models.exam import get_all_exams
 from models.question import get_questions_filtered
 
+SHANGHAI_TZ = ZoneInfo('Asia/Shanghai')
+
+
+def localtime_filter(value, fmt='%Y-%m-%d %H:%M'):
+    if not value:
+        return ''
+    try:
+        dt = datetime.strptime(str(value)[:19], '%Y-%m-%d %H:%M:%S')
+        dt = dt.replace(tzinfo=ZoneInfo('UTC')).astimezone(SHANGHAI_TZ)
+        return dt.strftime(fmt)
+    except (ValueError, TypeError):
+        return str(value)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.jinja_env.filters['localtime'] = localtime_filter
 init_db(app)
 
 from services.paper_service import cleanup_old_tasks

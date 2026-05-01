@@ -48,6 +48,8 @@ def create():
     exam_date = request.form.get('exam_date') or None
     question_number = request.form.get('question_number', '').strip()
     stem = request.form.get('stem', '').strip() or None
+    student_answer = request.form.get('student_answer', '').strip() or None
+    error_reason = request.form.get('error_reason', '').strip() or None
 
     if not subject_id or not question_number:
         flash('请选择学科并输入题号', 'error')
@@ -73,7 +75,9 @@ def create():
                 file.save(os.path.join(dir_path, filename))
                 image_path = f"{subject_name}/{exam_name}/{filename}"
 
-    question_id = create_question(exam_id, question_number, stem, image_path, user_id=user_id)
+    question_id = create_question(exam_id, question_number, stem, image_path,
+                                    student_answer=student_answer, error_reason=error_reason,
+                                    user_id=user_id)
 
     labels = request.form.getlist('sq_label')
     contents = request.form.getlist('sq_content')
@@ -131,7 +135,10 @@ def edit(question_id):
 
     question_number = request.form.get('question_number', '').strip()
     stem = request.form.get('stem', '').strip() or None
-    update_question(question_id, question_number=question_number, stem=stem)
+    student_answer = request.form.get('student_answer', '').strip() or None
+    error_reason = request.form.get('error_reason', '').strip() or None
+    update_question(question_id, question_number=question_number, stem=stem,
+                    student_answer=student_answer, error_reason=error_reason)
 
     file = request.files.get('image')
     if file and file.filename:

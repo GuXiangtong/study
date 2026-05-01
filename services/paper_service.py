@@ -94,13 +94,13 @@ def _get_recognition_method_name(user_id=None):
 def _sanitize_llm_json(text):
     """Fix LaTeX backslashes in LLM JSON output so they survive json.loads().
 
-    The model outputs LaTeX with single backslashes which are mostly invalid
-    JSON escapes.  We only preserve already-correct escapes: \\\\, \\\", \\/,
-    and \\uXXXX (with exactly 4 hex digits).  Everything else gets its
-    backslash doubled so it becomes a literal backslash after JSON parsing.
-    The negative lookbehind prevents double-escaping already-escaped chars.
+    Doubles every backslash that is not part of a valid JSON escape sequence
+    (\\\", \\\\, \\/, \\b, \\f, \\n, \\r, \\t, \\uXXXX).
     """
-    text = re.sub(r'(?<!\\)\\(?![\\"/]|u[0-9a-fA-F]{4})', r'\\\\', text)
+    text = re.sub(
+        r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})',
+        r'\\\\', text
+    )
     return text
 
 
@@ -442,27 +442,55 @@ def _refine_with_llm(questions, user_id=None):
         for q in questions
     )
 
+    # Determine if using Anthropic-compatible endpoint
+    is_anthropic = '/anthropic/' in api_url
     try:
-        resp = requests.post(
-            api_url,
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-            },
-            json={
-                'model': model,
-                'messages': [
-                    {'role': 'system', 'content': LLM_REFINE_PROMPT},
-                    {'role': 'user', 'content': text_input},
-                ],
-                'temperature': 0.3,
-                'max_tokens': 4096,
-            },
-            timeout=120,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        content = data['choices'][0]['message']['content']
+        if is_anthropic:
+            resp = requests.post(
+                api_url,
+                headers={
+                    'x-api-key': api_key,
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'model': model,
+                    'system': LLM_REFINE_PROMPT,
+                    'messages': [
+                        {'role': 'user', 'content': text_input},
+                    ],
+                    'temperature': 0.3,
+                    'max_tokens': 4096,
+                    'thinking': {'type': 'disabled'},
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = ''
+            for block in data.get('content', []):
+                if block.get('type') == 'text':
+                    content += block.get('text', '')
+        else:
+            resp = requests.post(
+                api_url,
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'model': model,
+                    'messages': [
+                        {'role': 'system', 'content': LLM_REFINE_PROMPT},
+                        {'role': 'user', 'content': text_input},
+                    ],
+                    'temperature': 0.3,
+                    'max_tokens': 4096,
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data['choices'][0]['message']['content']
 
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
         if json_match:
@@ -492,13 +520,16 @@ def _refine_with_llm(questions, user_id=None):
     return questions
 
 
-def _crop_question(page_img_path, y_start, y_end, output_path):
-    """Crop a question from a page image by y-percentage range (no padding)."""
+def _crop_question(page_img_path, y_start, y_end, output_path,
+                   x_start=0, x_end=100):
+    """Crop a question from a page image by percentage range."""
     img = Image.open(page_img_path)
     w, h = img.size
+    left = max(0, int(w * x_start / 100))
+    right = min(w, int(w * x_end / 100))
     top = max(0, int(h * y_start / 100))
     bottom = min(h, int(h * y_end / 100))
-    cropped = img.crop((0, top, w, bottom))
+    cropped = img.crop((left, top, right, bottom))
     cropped.save(output_path, 'PNG')
 
 
@@ -659,6 +690,10 @@ def _crop_questions_for_page(questions, page_img, questions_dir, page_num):
             q['image'] = img_name
 
         q['page'] = page_num + 1
+        q['crop_y_start'] = round(crop_y0, 1)
+        q['crop_y_end'] = round(crop_y1, 1)
+        q['crop_x_start'] = 0.0
+        q['crop_x_end'] = 100.0
 
 
 def process_paper(file, task_id, user_id=None):
@@ -686,6 +721,8 @@ def process_paper(file, task_id, user_id=None):
         dest = os.path.join(pages_dir, f'page_001{ext}')
         shutil.copy(original_path, dest)
         page_images = [dest]
+
+    page_image_names = [os.path.basename(p) for p in page_images]
 
     # ── Doubao Seed vision path ──
     if recognition_method == 'doubao_seed':
@@ -732,6 +769,7 @@ def process_paper(file, task_id, user_id=None):
             'question_count': len(all_questions),
             'questions': all_questions,
             'errors': errors,
+            'page_image_names': page_image_names,
         }
         with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:
             json.dump(result_data, f, ensure_ascii=False, indent=2)
@@ -756,6 +794,7 @@ def process_paper(file, task_id, user_id=None):
             'task_id': task_id, 'original_filename': file.filename,
             'page_count': len(page_images), 'question_count': 0,
             'questions': [], 'errors': errors,
+            'page_image_names': page_image_names,
         }
         with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:
             json.dump(result_data, f, ensure_ascii=False, indent=2)
@@ -788,11 +827,60 @@ def process_paper(file, task_id, user_id=None):
         'task_id': task_id, 'original_filename': file.filename,
         'page_count': len(page_images), 'question_count': len(all_questions),
         'questions': all_questions, 'errors': errors,
+        'page_image_names': page_image_names,
     }
     with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:
         json.dump(result_data, f, ensure_ascii=False, indent=2)
 
     return result_data
+
+
+def recrop_question(task_id, page_num, y_start, y_end, question_index,
+                    x_start=0, x_end=100):
+    """Re-crop a question with user-adjusted boundaries.
+
+    Args:
+        task_id: The processing task ID.
+        page_num: 1-based page number.
+        y_start: New top boundary in percentage (0-100).
+        y_end: New bottom boundary in percentage (0-100).
+        question_index: Index of the question (used for filename).
+        x_start: New left boundary in percentage (0-100).
+        x_end: New right boundary in percentage (0-100).
+
+    Returns:
+        New image filename, or None if re-crop failed.
+    """
+    task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
+    pages_dir = os.path.join(task_dir, 'pages')
+    questions_dir = os.path.join(task_dir, 'questions')
+    os.makedirs(questions_dir, exist_ok=True)
+
+    page_img = os.path.join(pages_dir, f'page_{page_num:03d}.png')
+    if not os.path.isfile(page_img):
+        # Try original extension
+        for ext in ('.jpg', '.jpeg', '.png'):
+            alt = os.path.join(pages_dir, f'page_{page_num:03d}{ext}')
+            if os.path.isfile(alt):
+                page_img = alt
+                break
+        else:
+            return None
+
+    # Find existing cropped image to get the question number for filename
+    result = load_result(task_id)
+    q_num = str(question_index + 1)
+    if result:
+        for q in result.get('questions', []):
+            if q.get('page') == page_num:
+                q_num = q.get('question_number', q_num)
+                break
+
+    img_name = f'p{page_num:02d}_{question_index:02d}_q{q_num}.png'
+    img_path = os.path.join(questions_dir, img_name)
+    _crop_question(page_img, y_start, y_end, img_path,
+                   x_start=x_start, x_end=x_end)
+    return img_name
 
 
 def load_result(task_id):

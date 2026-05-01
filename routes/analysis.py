@@ -1,5 +1,6 @@
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from utils.decorators import login_required
 from models.question import get_question
 from models.analysis import get_analysis
 from services.analysis_service import AnalysisService
@@ -8,14 +9,16 @@ analysis_bp = Blueprint('analysis', __name__)
 
 
 @analysis_bp.route('/analysis/question/<int:question_id>/run', methods=['POST'])
+@login_required
 def run_analysis(question_id):
-    question = get_question(question_id)
+    user_id = session['user_id']
+    question = get_question(question_id, user_id=user_id)
     if not question:
-        flash('题目不存在', 'error')
+        flash('题目不存在或无权访问', 'error')
         return redirect(request.referrer or url_for('questions.list_questions'))
 
     try:
-        service = AnalysisService()
+        service = AnalysisService(user_id=user_id)
         result = service.run_full_analysis(question_id)
         mode_label = 'LLM 分析' if service.mode == 'llm' else '模板分析'
         flash(f'分析完成（{mode_label}）', 'success')
@@ -26,10 +29,12 @@ def run_analysis(question_id):
 
 
 @analysis_bp.route('/analysis/<int:analysis_id>')
+@login_required
 def view_analysis(analysis_id):
-    analysis = get_analysis(analysis_id)
+    user_id = session['user_id']
+    analysis = get_analysis(analysis_id, user_id=user_id)
     if not analysis:
-        flash('分析记录不存在', 'error')
+        flash('分析记录不存在或无权访问', 'error')
         return redirect(url_for('questions.list_questions'))
 
     from models.practice import get_practices_by_analysis

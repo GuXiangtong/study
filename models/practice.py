@@ -2,12 +2,12 @@ from database import get_db
 
 
 def create_practice(analysis_result_id, difficulty, content, answer=None,
-                    solution_steps=None, knowledge_points=None):
+                    solution_steps=None, knowledge_points=None, user_id=None):
     db = get_db()
     db.execute(
         "INSERT INTO practice_questions (analysis_result_id, difficulty, content, "
-        "answer, solution_steps, knowledge_points) VALUES (?, ?, ?, ?, ?, ?)",
-        (analysis_result_id, difficulty, content, answer, solution_steps, knowledge_points)
+        "answer, solution_steps, knowledge_points, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (analysis_result_id, difficulty, content, answer, solution_steps, knowledge_points, user_id)
     )
     db.commit()
     return db.execute("SELECT last_insert_rowid()").fetchone()[0]

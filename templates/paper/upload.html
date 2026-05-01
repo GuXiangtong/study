@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}试卷导入 - 高考错题复习助手{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📄 试卷导入</h1>
+    <p>上传整张试卷（PDF 或图片），自动识别并拆分题目</p>
+</div>
+
+<div class="card">
+    <h2>上传试卷</h2>
+    <form method="POST" enctype="multipart/form-data" class="paper-upload-form">
+        <div class="form-group">
+            <label>学科 <span class="required">*</span></label>
+            <select name="subject_id" required>
+                <option value="">-- 请选择学科 --</option>
+                {% for s in subjects %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>选择已有考试</label>
+                <select name="exam_id" id="examSelect">
+                    <option value="">-- 或创建新考试 --</option>
+                    {% for e in exams %}
+                    <option value="{{ e.id }}" data-subject="{{ e.subject_id }}">
+                        {{ e.subject_name }} - {{ e.name }}
+                        {% if e.exam_date %}({{ e.exam_date }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-row" id="newExamFields">
+            <div class="form-group">
+                <label>新建考试名称</label>
+                <input type="text" name="exam_name" placeholder="例如：高二下期中">
+            </div>
+            <div class="form-group">
+                <label>考试日期</label>
+                <input type="date" name="exam_date">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>试卷文件 <span class="required">*</span></label>
+            <input type="file" name="paper_file" accept=".pdf,.jpg,.jpeg,.png" required>
+            <p class="form-hint">支持 PDF、JPG、PNG 格式。PDF 多页试卷会自动识别每一页的题目。</p>
+        </div>
+
+        <div class="form-hint" style="background:#fffbeb;padding:12px;border-radius:8px;border:1px solid #fde68a;margin-top:12px;">
+            <strong>提示：</strong>处理需要调用 AI 识别题目，每页大约需要 5-10 秒，请耐心等待。
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" onclick="this.form.submit(); this.disabled=true; this.textContent='正在分析试卷...';">
+                开始分析
+            </button>
+            <a href="{{ url_for('questions.list_questions') }}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Filter exam dropdown by selected subject
+document.querySelector('[name=subject_id]').addEventListener('change', function() {
+    const subjectId = this.value;
+    const examSelect = document.getElementById('examSelect');
+    for (const opt of examSelect.options) {
+        if (!opt.value) continue;
+        opt.style.display = (opt.dataset.subject === subjectId) ? '' : 'none';
+    }
+});
+</script>
+{% endblock %}

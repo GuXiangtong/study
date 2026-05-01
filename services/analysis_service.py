@@ -3,7 +3,9 @@ import os
 import re
 import requests
 from datetime import date
-from config import ANALYSIS_DIR, LLM_API_KEY, LLM_API_URL, LLM_MODEL
+from config import (ANALYSIS_DIR, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
+                    DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
+                    DOUBAO_MODEL)
 from models.question import get_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
@@ -117,16 +119,16 @@ def _build_analysis_prompt(question, sub_questions):
     return '\n'.join(prompt_parts)
 
 
-def _call_deepseek(system_prompt, user_prompt):
-    """Call DeepSeek API and return parsed JSON."""
+def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
+    """Call an LLM API and return parsed JSON."""
     resp = requests.post(
-        LLM_API_URL,
+        api_url,
         headers={
-            "Authorization": f"Bearer {LLM_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         },
         json={
-            "model": LLM_MODEL,
+            "model": model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -213,10 +215,15 @@ def _parse_llm_response(llm_data):
 class AnalysisService:
     """Execute the 4-step analysis workflow from CLAUDE.md."""
 
-    def __init__(self, mode=None):
-        # Auto-detect: use LLM if API key is available, otherwise template
+    def __init__(self, mode=None, user_id=None):
+        self.user_id = user_id
         if mode is None:
-            self.mode = 'llm' if LLM_API_KEY else 'template'
+            try:
+                from models.settings import get_analysis_method
+                method = get_analysis_method(user_id=user_id)
+            except Exception:
+                method = 'deepseek'
+            self.mode = method
         else:
             self.mode = mode
 
@@ -227,7 +234,7 @@ class AnalysisService:
 
         sub_questions = [dict(sq) for sq in get_sub_questions_by_question(question_id)]
 
-        if self.mode == 'llm':
+        if self.mode in ('llm', 'deepseek'):
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
@@ -236,6 +243,12 @@ class AnalysisService:
                 step2 = self._step2_template(question, sub_questions, step1)
                 step3 = self._step3_template(question, sub_questions, step1, step2)
                 step4 = self._step4_template(question, sub_questions, step1, step2)
+        elif self.mode == 'doubao_seed':
+            # TODO: implement Doubao Seed analysis
+            step1 = self._step1_template(question, sub_questions)
+            step2 = self._step2_template(question, sub_questions, step1)
+            step3 = self._step3_template(question, sub_questions, step1, step2)
+            step4 = self._step4_template(question, sub_questions, step1, step2)
         else:
             step1 = self._step1_template(question, sub_questions)
             step2 = self._step2_template(question, sub_questions, step1)
@@ -246,8 +259,15 @@ class AnalysisService:
 
     def _run_llm_analysis(self, question, sub_questions):
         user_prompt = _build_analysis_prompt(question, sub_questions)
-        llm_data = _call_deepseek(SYSTEM_PROMPT, user_prompt)
+        api_key, api_url, model = self._get_llm_config()
+        llm_data = _call_llm(SYSTEM_PROMPT, user_prompt, api_key, api_url, model)
         return _parse_llm_response(llm_data)
+
+    def _get_llm_config(self):
+        """Return (api_key, api_url, model) for the current analysis method."""
+        if self.mode == 'doubao_seed':
+            return DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_MODEL
+        return DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 
     def _save_analysis(self, question, step1, step2, step3, step4):
         subject = question['subject_name']
@@ -269,6 +289,7 @@ class AnalysisService:
             step2_data=json.dumps(step2, ensure_ascii=False),
             step3_data=json.dumps(step3, ensure_ascii=False),
             step4_data=json.dumps(step4, ensure_ascii=False),
+            user_id=self.user_id,
         )
         return {'id': analysis_id}
 

@@ -82,33 +82,67 @@ def _build_analysis_prompt(question, sub_questions):
 
 
 def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
-    """Call an LLM API and return parsed JSON."""
-    resp = requests.post(
-        api_url,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.7,
-            "max_tokens": 8192,
-        },
-        timeout=300,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    content = data["choices"][0]["message"]["content"]
+    """Call DeepSeek LLM via Anthropic-compatible Messages API, return parsed JSON."""
+    import datetime, os
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
 
-    # Extract JSON from the response (may be wrapped in ```json ... ```)
-    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
-    if json_match:
-        content = json_match.group(1)
-    return _safe_json_parse(content)
+    def log(msg):
+        with open(log_path, 'a') as f:
+            f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+
+    log(f"Calling {api_url} model={model}")
+    log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
+
+    try:
+        resp = requests.post(
+            api_url,
+            headers={
+                "x-api-key": api_key,
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "system": system_prompt,
+                "messages": [
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 8192,
+                "thinking": {"type": "disabled"},
+            },
+            timeout=120,
+        )
+        log(f"HTTP {resp.status_code}")
+        resp.raise_for_status()
+        data = resp.json()
+
+        blocks = data.get("content", [])
+        log(f"Response blocks: {len(blocks)}, types: {[b.get('type') for b in blocks]}")
+
+        content = ""
+        for block in blocks:
+            if block.get("type") == "text":
+                content += block.get("text", "")
+
+        if not content:
+            log(f"EMPTY CONTENT! Raw data keys: {list(data.keys())}, blocks: {blocks}")
+            raise ValueError(f"API 返回了空内容。状态码: {resp.status_code}, stop_reason: {data.get('stop_reason')}")
+
+        log(f"Content length: {len(content)}, preview: {content[:300]}")
+
+        # Extract JSON from the response
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(1)
+            log(f"Extracted from markdown, new length: {len(content)}")
+
+        result = _safe_json_parse(content)
+        log(f"JSON parsed OK, top keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
+        return result
+
+    except Exception as e:
+        log(f"EXCEPTION: {type(e).__name__}: {e}")
+        raise
 
 
 def _safe_json_parse(text):
@@ -116,11 +150,17 @@ def _safe_json_parse(text):
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Fix backslash followed by 2+ letters (e.g. \frac, \sqrt, \theta)
-        text = re.sub(r'\\([a-zA-Z]{2,})', r'\\\\\1', text)
-        # Fix backslash followed by a non-JSON-escape character
-        text = re.sub(r'\\([^"\\/bfnrtu0-9])', r'\\\\\1', text)
-        return json.loads(text)
+        pass
+
+    # Fix ALL backslash sequences that aren't valid JSON escapes.
+    # Valid JSON escapes: \" \\ \/ \b \f \n \r \t \uXXXX
+    # Everything else (LaTeX commands like \frac, \(, \), \sin, etc.)
+    # needs its backslash doubled to become a literal backslash in JSON.
+    text = re.sub(
+        r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})',
+        r'\\\\', text
+    )
+    return json.loads(text)
 
 
 def _parse_llm_response(llm_data):
@@ -215,8 +255,13 @@ class AnalysisService:
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
-                llm_error = str(e)
-                print(f"[LLM Error] {e}, falling back to template mode")
+                import traceback, os, datetime
+                tb = traceback.format_exc()
+                llm_error = f"{type(e).__name__}: {e}"
+                # Write debug log to file since Flask reloader eats stdout
+                log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+                with open(log_path, 'a') as f:
+                    f.write(f"[{datetime.datetime.now().isoformat()}] LLM ERROR: {llm_error}\n{tb}\n")
                 step1 = self._step1_template(question, sub_questions)
                 step2 = self._step2_template(question, sub_questions, step1)
                 step3 = self._step3_template(question, sub_questions, step1, step2)
@@ -232,13 +277,30 @@ class AnalysisService:
         return result
 
     def _run_llm_analysis(self, question, sub_questions):
-        user_prompt = _build_analysis_prompt(question, sub_questions)
+        import datetime, os
+        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+
+        def log(msg):
+            with open(log_path, 'a') as f:
+                f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+
+        log("_run_llm_analysis START")
+
+        try:
+            user_prompt = _build_analysis_prompt(question, sub_questions)
+            log(f"Built user prompt, length: {len(user_prompt)}")
+        except Exception as e:
+            log(f"Failed to build prompt: {e}")
+            raise
+
         api_key, api_url, model = self._get_llm_config()
+        log(f"Config: api_url={api_url}, model={model}, key_ok={bool(api_key)}")
 
         # Use custom system prompt if configured, otherwise default
         from models.settings import get_setting
         custom_sys = get_setting('system_prompt', '', user_id=self.user_id)
         system_prompt = custom_sys if custom_sys else SYSTEM_PROMPT
+        log(f"System prompt length: {len(system_prompt)}, from_custom: {bool(custom_sys)}")
 
         # Inject subject-specific custom prompt
         subject_name = question.get('subject_name', '')
@@ -247,9 +309,15 @@ class AnalysisService:
             custom = subject_prompts.get(subject_name, '')
             if custom:
                 system_prompt += f"\n\n## 用户对{subject_name}学科的个性化要求\n{custom}"
+                log(f"Added subject custom prompt, total system length: {len(system_prompt)}")
 
+        log("Calling _call_llm...")
         llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
-        return _parse_llm_response(llm_data)
+        log(f"_call_llm returned, keys: {list(llm_data.keys())}")
+
+        result = _parse_llm_response(llm_data)
+        log("_parse_llm_response OK")
+        return result
 
     def _get_llm_config(self):
         """Return (api_key, api_url, model) for the current analysis method."""

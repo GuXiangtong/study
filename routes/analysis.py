@@ -25,7 +25,11 @@ def run_analysis(question_id):
         if result.get('llm_error'):
             flash(f'AI 调用失败，使用模板回退。错误：{result["llm_error"]}', 'warning')
         else:
-            mode_label = {'deepseek': 'DeepSeek AI', 'doubao_seed': 'Doubao Seed AI'}.get(service.mode, service.mode)
+            mode_label = {
+                'deepseek': 'DeepSeek AI',
+                'anthropic': 'Anthropic (Claude)',
+                'doubao_seed': 'Doubao Seed AI',
+            }.get(service.mode, service.mode)
             flash(f'分析完成（{mode_label}）', 'success')
         return redirect(url_for('analysis.view_analysis', analysis_id=result['id']))
     except Exception as e:

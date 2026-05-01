@@ -3,7 +3,8 @@ import os
 import re
 import requests
 from datetime import date
-from config import (ANALYSIS_DIR, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
+from config import (ANALYSIS_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
+                    ANTHROPIC_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
                     DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
                     DOUBAO_MODEL)
 from models.question import get_question
@@ -93,6 +94,20 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     log(f"Calling {api_url} model={model}")
     log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
 
+    # Build request body — skip thinking for DeepSeek (consumes output tokens),
+    # but don't send it for Anthropic API (not needed, off by default).
+    body = {
+        "model": model,
+        "system": system_prompt,
+        "messages": [
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.7,
+        "max_tokens": 8192,
+    }
+    if "api.anthropic.com" not in api_url:
+        body["thinking"] = {"type": "disabled"}
+
     try:
         resp = requests.post(
             api_url,
@@ -100,16 +115,7 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 "x-api-key": api_key,
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "system": system_prompt,
-                "messages": [
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 8192,
-                "thinking": {"type": "disabled"},
-            },
+            json=body,
             timeout=120,
         )
         log(f"HTTP {resp.status_code}")
@@ -323,6 +329,8 @@ class AnalysisService:
         """Return (api_key, api_url, model) for the current analysis method."""
         if self.mode == 'doubao_seed':
             return DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_MODEL
+        if self.mode == 'anthropic':
+            return ANTHROPIC_API_KEY, ANTHROPIC_API_URL, ANTHROPIC_MODEL
         return DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 
     def _save_analysis(self, question, step1, step2, step3, step4):
@@ -337,7 +345,10 @@ class AnalysisService:
         self._write_analysis_file(file_path, question, step1, step2, step3, step4, mode=self.mode)
         rel_path = f"{subject}/{filename}"
 
-        model_label = 'Doubao Seed' if self.mode == 'doubao_seed' else 'DeepSeek'
+        model_label = {
+            'doubao_seed': 'Doubao Seed',
+            'anthropic': 'Anthropic (Claude)',
+        }.get(self.mode, 'DeepSeek')
         analysis_id = create_analysis(
             sub_question_id=None,
             question_id=question['id'],
@@ -545,7 +556,10 @@ class AnalysisService:
                 content += f"\n参考答案：{lv['answer']}\n"
             content += "\n"
 
-        model_name = 'Doubao Seed AI' if mode == 'doubao_seed' else 'DeepSeek AI'
+        model_name = {
+            'doubao_seed': 'Doubao Seed AI',
+            'anthropic': 'Anthropic (Claude)',
+        }.get(mode, 'DeepSeek AI')
         content += f"\n---\n*本报告由 {model_name} 自动生成*\n"
 
         with open(file_path, 'w', encoding='utf-8') as f:

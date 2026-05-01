@@ -11,6 +11,7 @@ RECOGNITION_METHODS = {
 
 ANALYSIS_METHODS = {
     'deepseek': 'DeepSeek',
+    'anthropic': 'Anthropic (Claude)',
     'doubao_seed': 'Doubao Seed',
 }
 

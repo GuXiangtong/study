@@ -27,7 +27,7 @@
         </div>
         <div class="field-item">
             <strong>AI 分析：</strong>
-            <div class="analysis-text">{{ step1.ai_analysis | replace('\n', '<br>') | safe }}</div>
+            <div class="analysis-text">{{ step1.ai_analysis }}</div>
         </div>
         <div class="field-item">
             <strong>关联知识点：</strong>
@@ -45,7 +45,7 @@
 <div class="card">
     <h2>{{ step2.title }}</h2>
     <div class="analysis-section">
-        <div class="analysis-text">{{ step2.weakness_analysis | replace('\n', '<br>') | safe }}</div>
+        <div class="analysis-text">{{ step2.weakness_analysis }}</div>
     </div>
 </div>
 {% endif %}
@@ -60,17 +60,17 @@
         {% for s in step3.steps %}
         <div class="step-item">
             <h3>{{ loop.index }}. {{ s.name }}</h3>
-            <div class="analysis-text">{{ s.guidance | replace('\n', '<br>') | safe }}</div>
+            <div class="analysis-text">{{ s.guidance }}</div>
         </div>
         {% endfor %}
     </div>
     {% if step3.correct_answer %}
     <h3 style="margin-top:16px;">正确答案</h3>
-    <div class="analysis-text">{{ step3.correct_answer | replace('\n', '<br>') | safe }}</div>
+    <div class="analysis-text">{{ step3.correct_answer }}</div>
     {% endif %}
     {% if step3.solution_steps %}
     <h3 style="margin-top:16px;">解题步骤</h3>
-    <div class="analysis-text">{{ step3.solution_steps | replace('\n', '<br>') | safe }}</div>
+    <div class="analysis-text">{{ step3.solution_steps }}</div>
     {% endif %}
 </div>
 {% endif %}

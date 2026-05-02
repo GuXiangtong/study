@@ -1,452 +1,729 @@
 {% extends "base.html" %}
-{% block title %}审核识别结果 - 试卷导入{% endblock %}
+{% block title %}手动框选题目 - 试卷导入{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>审核识别结果</h1>
+<style>
+/* ── Page-specific layout ── */
+.pv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.pv-info h2 { font-size: 20px; margin-bottom: 4px; }
+.pv-info p { color: var(--text-muted); font-size: 13px; }
+.pv-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.pv-page-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+.pv-page-tab {
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+.pv-page-tab:hover { border-color: var(--primary); color: var(--primary); }
+.pv-page-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.pv-main { display: flex; gap: 16px; align-items: flex-start; }
+
+.pv-canvas-area {
+    flex: 0 0 58%;
+    position: sticky;
+    top: 70px;
+    max-height: calc(100vh - 130px);
+    overflow-y: auto;
+}
+.pv-canvas-wrap {
+    position: relative;
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    user-select: none;
+}
+.pv-page-img { display: block; width: 100%; height: auto; }
+.pv-overlay { position: absolute; inset: 0; pointer-events: none; }
+.pv-overlay > * { pointer-events: auto; }
+
+/* Question zone boxes on the canvas */
+.pv-zone {
+    position: absolute;
+    border: 2px solid;
+    box-sizing: border-box;
+    user-select: none;
+}
+.pv-zone.active { box-shadow: 0 0 0 3px rgba(0,0,0,0.18); z-index: 10; }
+.pv-zone-label {
+    position: absolute;
+    top: -22px;
+    left: -1px;
+    padding: 0 7px;
+    font-size: 11px;
+    line-height: 20px;
+    border-radius: 3px 3px 0 0;
+    color: white;
+    font-weight: 600;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* Sidebar */
+.pv-sidebar {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 130px);
+    position: sticky;
+    top: 70px;
+}
+.pv-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+.pv-sidebar-title { font-size: 15px; font-weight: 600; }
+.pv-question-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 2px;
+}
+.pv-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+    font-size: 14px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    flex-shrink: 0;
+}
+
+/* Question cards in sidebar */
+.q-card {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.q-card:hover { border-color: #94a3b8; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.q-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,70,229,0.15); }
+.qc-bar { width: 5px; flex-shrink: 0; }
+.qc-body { flex: 1; padding: 10px; min-width: 0; }
+.qc-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.qc-page-tag {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #f1f5f9;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.qc-num-wrap { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.qc-num-input {
+    width: 60px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+}
+.qc-status {
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    background: #f1f5f9;
+    color: var(--text-muted);
+}
+.qc-status.recognizing { background: #fffbeb; color: #b45309; }
+.qc-status.recognized { background: #dcfce7; color: #166534; }
+.qc-status.failed { background: #fee2e2; color: #991b1b; }
+.qc-del {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 0 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.qc-del:hover { background: #fee2e2; color: var(--danger); }
+.qc-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 120px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+}
+.qc-content-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 13px;
+    resize: vertical;
+    font-family: inherit;
+    color: var(--text);
+    min-height: 68px;
+}
+.qc-content-input::placeholder { color: #94a3b8; }
+
+/* Hint overlay when no page loaded */
+.pv-loading { text-align: center; padding: 60px; color: var(--text-muted); }
+
+/* Btn sm override */
+.btn-sm { padding: 5px 12px; font-size: 13px; }
+.btn-outline {
+    background: white;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+}
+.btn-outline:hover { background: var(--primary); color: white; }
+</style>
+
+<div class="pv-header">
+    <div class="pv-info">
+        <h2>手动框选题目</h2>
         <p>
             学科：<strong>{{ subject_name }}</strong> |
             考试：<strong>{{ exam_name }}</strong> |
-            文件：<strong>{{ result.original_filename }}</strong>（{{ result.page_count }} 页） |
-            识别到 <strong>{{ result.question_count }}</strong> 道题
+            文件：<strong>{{ result.original_filename }}</strong>（{{ result.page_count }} 页）
         </p>
-        <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">
-            拖拽色块四边调整大小，拖拽四角对角线缩放，拖拽中间移动整块区域。
+        <p style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+            在右侧点击「+ 添加题目」，然后在左侧图片上拖动矩形框选择题目范围；框选完毕后点击「识别」提取文字。
         </p>
     </div>
-    <div class="header-actions">
-        <button class="btn btn-primary" id="btnConfirm">确认导入选中题目</button>
+    <div class="pv-actions">
+        <button id="btnRecognize" class="btn btn-primary">识别</button>
+        <button id="btnImport" class="btn btn-success">确认导入</button>
         <a href="{{ url_for('paper.upload') }}" class="btn btn-secondary">放弃重传</a>
     </div>
 </div>
 
-{% if result.errors %}
-<div class="flash-messages">
-    {% for err in result.errors %}
-    <div class="flash flash-error">{{ err }}</div>
+{% if result.page_count > 1 %}
+<div class="pv-page-tabs" id="pageTabs">
+    {% for i in range(1, result.page_count + 1) %}
+    <button class="pv-page-tab{% if loop.first %} active{% endif %}"
+            data-page="{{ i }}">第 {{ i }} 页</button>
     {% endfor %}
 </div>
 {% endif %}
 
-{% if result.questions %}
-{% set questions_by_page = {} %}
-{% for q in result.questions %}
-    {% set p = q.page | default(1) %}
-    {% if p not in questions_by_page %}{% set _ = questions_by_page.update({p: []}) %}{% endif %}
-    {% set _ = questions_by_page[p].append(q) %}
-{% endfor %}
-{% set pages = questions_by_page.keys() | sort %}
-{% set page_img_map = {} %}
-{% if result.page_image_names %}
-    {% for img_name in result.page_image_names %}
-        {% set _p = loop.index %}{% set _ = page_img_map.update({_p: img_name}) %}
-    {% endfor %}
-{% else %}
-    {% for p in pages %}
-        {% set _ = page_img_map.update({p: 'page_' ~ '%03d' % p ~ '.png'}) %}
-    {% endfor %}
-{% endif %}
-{% set first_page = pages | first %}
-
-<form id="confirmForm" method="POST" action="{{ url_for('paper.confirm', task_id=task_id) }}">
-    <input type="hidden" name="question_positions" id="questionPositionsInput" value="{}">
-
-    {% if pages | length > 1 %}
-    <div class="adjust-page-tabs">
-        {% for p in pages %}
-        <button type="button" class="adjust-page-tab{% if loop.first %} active{% endif %}"
-                data-page="{{ p }}">第 {{ p }} 页</button>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="adjust-main">
-        <div class="adjust-page-area">
-            <div class="adjust-page-wrapper" id="pageWrapper">
-                <img class="adjust-page-img" id="pageImage"
-                     src="{{ url_for('paper.serve_page_image', task_id=task_id, filename=page_img_map[first_page]) }}"
-                     alt="试卷第 {{ first_page }} 页">
-                <div class="adjust-overlay" id="questionOverlay">
-                    {% for q in result.questions %}
-                    {% set idx = loop.index0 %}
-                    {% set p = q.page | default(1) %}
-                    {% set xs = q.crop_x_start | default(0) %}
-                    {% set xe = q.crop_x_end | default(100) %}
-                    {% set ys = q.crop_y_start | default(q.y_start) %}
-                    {% set ye = q.crop_y_end | default(q.y_end) %}
-                    <div class="adjust-q-zone"
-                         id="zone-{{ idx }}"
-                         data-index="{{ idx }}"
-                         data-page="{{ p }}"
-                         data-x-start="{{ xs }}" data-x-end="{{ xe }}"
-                         data-y-start="{{ ys }}" data-y-end="{{ ye }}"
-                         style="left: {{ xs }}%; width: {{ '%.1f' | format(xe - xs) if xe > xs else 5 }}%;
-                                top: {{ ys }}%; height: {{ '%.1f' | format(ye - ys) if ye > ys else 3 }}%;
-                                {% if p != first_page %}display: none;{% endif %}">
-                        <span class="adjust-q-label">{{ q.question_number }}</span>
-                        <div class="adjust-q-corner" style="bottom:-5px;left:-5px;"></div>
-                        <div class="adjust-q-corner" style="bottom:-5px;right:-5px;"></div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="adjust-detail-list" id="detailList">
-            {% for q in result.questions %}
-            {% set idx = loop.index0 %}
-            {% set p = q.page | default(1) %}
-            <div class="adjust-detail-card"
-                 id="card-{{ idx }}"
-                 data-index="{{ idx }}"
-                 data-page="{{ p }}"
-                 style="{% if p != first_page %}display: none;{% endif %}">
-                <div class="adc-header">
-                    <label class="adc-checkbox">
-                        <input type="checkbox" name="selected" value="{{ idx }}" checked>
-                    </label>
-                    <div class="adc-number">
-                        <span class="adc-page-tag">第 {{ p }} 页</span>
-                        <span style="font-size:12px;color:var(--text-muted);">题号</span>
-                        <input type="text" name="question_number" value="{{ q.question_number }}"
-                               class="adc-number-input">
-                    </div>
-                </div>
-
-                <div class="adc-content">
-                    <label class="adc-field-label">题目内容（可编辑）</label>
-                    <textarea name="stem" rows="4" class="adc-stem-input"
-                              placeholder="题目内容">{{ q.content }}</textarea>
-                </div>
-
-                <div class="adc-preview">
-                    <span class="adc-preview-label">裁剪预览</span>
-                    <canvas class="adc-canvas" id="canvas-{{ idx }}"></canvas>
-                </div>
-            </div>
-            {% endfor %}
+<div class="pv-main">
+    <!-- Left: image canvas with draggable zones -->
+    <div class="pv-canvas-area">
+        <div class="pv-canvas-wrap" id="canvasWrap">
+            {% if result.page_image_names %}
+            <img id="pageImg" class="pv-page-img"
+                 src="{{ url_for('paper.serve_page_image', task_id=task_id, filename=result.page_image_names[0]) }}"
+                 alt="试卷第 1 页" draggable="false">
+            {% else %}
+            <div class="pv-loading">暂无页面图片</div>
+            {% endif %}
+            <div class="pv-overlay" id="overlay"></div>
         </div>
     </div>
 
-    <div class="form-actions" style="margin-top:24px;">
-        <button type="submit" class="btn btn-primary">确认导入选中题目</button>
-        <a href="{{ url_for('paper.upload') }}" class="btn btn-secondary">放弃重传</a>
+    <!-- Right: question list sidebar -->
+    <div class="pv-sidebar">
+        <div class="pv-sidebar-header">
+            <span class="pv-sidebar-title">题目列表</span>
+            <button id="btnAdd" class="btn btn-sm btn-outline">+ 添加题目</button>
+        </div>
+        <div id="questionList" class="pv-question-list">
+            <div class="pv-empty" id="emptyHint">
+                点击「+ 添加题目」开始框选范围
+            </div>
+        </div>
     </div>
+</div>
+
+<!-- Hidden form for confirm submission -->
+<form id="confirmForm" method="POST"
+      action="{{ url_for('paper.confirm', task_id=task_id) }}"
+      style="display:none">
+    <input type="hidden" name="questions_json" id="questionsJsonInput">
 </form>
-{% else %}
-<div class="empty-state">
-    <p>未能识别到任何题目。</p>
-    <p>可能原因：图片不够清晰、试卷排版特殊、或页面空白。</p>
-    <a href="{{ url_for('paper.upload') }}" class="btn btn-primary">重新上传</a>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-(function() {
-    const questions = {{ result.questions | tojson }};
+(function () {
+    'use strict';
+
+    // ── Server data ──────────────────────────────────────────────────
+    const taskId = {{ task_id | tojson }};
     const pageCount = {{ result.page_count }};
-    const taskId = '{{ task_id }}';
 
-    // Build page → image URL map
     const pageImages = {};
-    {% if result.page_image_names %}
-    {% for img_name in result.page_image_names %}
-    pageImages[{{ loop.index }}] = '{{ url_for('paper.serve_page_image', task_id=task_id, filename=img_name) }}';
+    {% for img in result.page_image_names %}
+    pageImages[{{ loop.index }}] = {{ url_for('paper.serve_page_image', task_id=task_id, filename=img) | tojson }};
     {% endfor %}
-    {% else %}
-    {% for i in range(1, result.page_count + 1) %}
-    pageImages[{{ i }}] = '{{ url_for('paper.serve_page_image', task_id=task_id, filename='page_' ~ '%03d' % i ~ '.png') }}';
-    {% endfor %}
-    {% endif %}
 
-    const pageSet = new Set(questions.map(q => q.page || 1));
-    const sortedPages = Array.from(pageSet).sort((a, b) => a - b);
-    let currentPage = sortedPages[0] || 1;
+    // ── State ────────────────────────────────────────────────────────
+    const COLORS = [
+        '#4A90D9', '#E04060', '#27AE60', '#E8A000',
+        '#8E44AD', '#16A085', '#D35400', '#2980B9',
+    ];
+    let questions = [];   // [{id, number, page, pos, image, content, recognized, color}]
+    let currentPage = 1;
+    let selectedId = null;
+    let dragState = null;
+    let _nextNum = 1;
+    let _lastHoveredZone = null;
 
-    // positions: { index: {x_start, x_end, y_start, y_end} } — all in %
-    const positions = {};
-    questions.forEach((q, i) => {
-        positions[i] = {
-            x_start: q.crop_x_start || 0,
-            x_end: q.crop_x_end || 100,
-            y_start: q.crop_y_start || q.y_start,
-            y_end: q.crop_y_end || q.y_end
-        };
-    });
+    // ── DOM refs ─────────────────────────────────────────────────────
+    const pageImg    = document.getElementById('pageImg');
+    const overlay    = document.getElementById('overlay');
+    const qList      = document.getElementById('questionList');
+    const emptyHint  = document.getElementById('emptyHint');
+    const btnAdd     = document.getElementById('btnAdd');
+    const btnRec     = document.getElementById('btnRecognize');
+    const btnImport  = document.getElementById('btnImport');
 
-    const pageImage = document.getElementById('pageImage');
-    const overlay = document.getElementById('questionOverlay');
-    const positionInput = document.getElementById('questionPositionsInput');
-    const btnConfirm = document.getElementById('btnConfirm');
-    const confirmForm = document.getElementById('confirmForm');
-
-    // ── Page switching ──
-    document.querySelectorAll('.adjust-page-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.adjust-page-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            switchPage(parseInt(this.dataset.page));
-        });
-    });
-
-    function switchPage(page) {
-        currentPage = page;
-        pageImage.src = pageImages[page];
-        document.querySelectorAll('.adjust-q-zone').forEach(zone => {
-            zone.style.display = parseInt(zone.dataset.page) === page ? '' : 'none';
-        });
-        document.querySelectorAll('.adjust-detail-card').forEach(card => {
-            card.style.display = parseInt(card.dataset.page) === page ? '' : 'none';
-        });
-        clearSelection();
+    // ── Helpers ──────────────────────────────────────────────────────
+    function genId() {
+        return 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    }
+    function getColor(idx) { return COLORS[idx % COLORS.length]; }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function hexToRgba(hex, a) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${a})`;
     }
 
-    // ── Selection (bidirectional) ──
-    let selectedIndex = null;
+    function showEmpty(show) {
+        emptyHint.style.display = show ? '' : 'none';
+    }
 
-    function selectQuestion(idx) {
-        clearSelection();
-        selectedIndex = idx;
-        const zone = document.getElementById('zone-' + idx);
+    // ── Add question ─────────────────────────────────────────────────
+    function addQuestion() {
+        const id    = genId();
+        const color = getColor(questions.length);
+        const num   = String(_nextNum++);
+        const q = {
+            id, number: num, page: currentPage,
+            pos: { x_start: 5, y_start: 10, x_end: 95, y_end: 35 },
+            image: null, content: '', recognized: false, color,
+        };
+        questions.push(q);
+        showEmpty(false);
+        renderZone(q);
+        renderCard(q);
+        selectQuestion(id);
+    }
+
+    // ── Remove question ──────────────────────────────────────────────
+    function removeQuestion(id) {
+        questions = questions.filter(q => q.id !== id);
+        document.getElementById('zone-' + id)?.remove();
+        document.getElementById('card-' + id)?.remove();
+        if (selectedId === id) selectedId = null;
+        if (questions.length === 0) showEmpty(true);
+    }
+
+    // ── Render zone on left canvas ───────────────────────────────────
+    function renderZone(q) {
+        const div = document.createElement('div');
+        div.id = 'zone-' + q.id;
+        div.className = 'pv-zone';
+        div.dataset.id = q.id;
+        div.dataset.page = q.page;
+        div.style.borderColor = q.color;
+        div.style.backgroundColor = hexToRgba(q.color, 0.08);
+
+        const label = document.createElement('span');
+        label.className = 'pv-zone-label';
+        label.id = 'zlabel-' + q.id;
+        label.style.background = q.color;
+        label.textContent = q.number;
+        div.appendChild(label);
+
+        overlay.appendChild(div);
+        updateZonePos(q.id);
+        if (q.page !== currentPage) div.style.display = 'none';
+    }
+
+    // ── Render card in sidebar ───────────────────────────────────────
+    function renderCard(q) {
+        const div = document.createElement('div');
+        div.id = 'card-' + q.id;
+        div.className = 'q-card';
+        div.dataset.id = q.id;
+        div.dataset.page = q.page;
+
+        div.innerHTML = `
+            <div class="qc-bar" style="background:${q.color}"></div>
+            <div class="qc-body">
+                <div class="qc-header">
+                    <span class="qc-page-tag">第${q.page}页</span>
+                    <span class="qc-num-wrap">题号
+                        <input class="qc-num-input" id="num-${q.id}"
+                               type="text" value="${q.number}">
+                    </span>
+                    <span class="qc-status" id="status-${q.id}">未识别</span>
+                    <button class="qc-del" data-id="${q.id}" title="删除题目">×</button>
+                </div>
+                <canvas class="qc-preview" id="preview-${q.id}"></canvas>
+                <textarea class="qc-content-input no-mathjax" id="content-${q.id}"
+                          rows="3" placeholder="识别后将自动填入，也可手动输入...">${q.content}</textarea>
+            </div>
+        `;
+
+        // Number input sync
+        div.querySelector('.qc-num-input').addEventListener('input', function () {
+            const id = this.closest('.q-card').dataset.id;
+            const qObj = questions.find(x => x.id === id);
+            if (!qObj) return;
+            qObj.number = this.value;
+            const lbl = document.getElementById('zlabel-' + id);
+            if (lbl) lbl.textContent = qObj.number;
+        });
+
+        // Content textarea sync
+        div.querySelector('.qc-content-input').addEventListener('input', function () {
+            const id = this.closest('.q-card').dataset.id;
+            const qObj = questions.find(x => x.id === id);
+            if (qObj) qObj.content = this.value;
+        });
+
+        // Click card → select (but not when interacting with inputs)
+        div.addEventListener('click', function (e) {
+            if (e.target.classList.contains('qc-del') ||
+                e.target.tagName === 'INPUT' ||
+                e.target.tagName === 'TEXTAREA') return;
+            const id = this.dataset.id;
+            const qObj = questions.find(x => x.id === id);
+            if (qObj && qObj.page !== currentPage) switchPage(qObj.page);
+            selectQuestion(id);
+        });
+
+        // Delete button
+        div.querySelector('.qc-del').addEventListener('click', function () {
+            removeQuestion(this.dataset.id);
+        });
+
+        qList.appendChild(div);
+        schedulePreview(q.id);
+    }
+
+    // ── Selection ────────────────────────────────────────────────────
+    function selectQuestion(id) {
+        selectedId = id;
+        document.querySelectorAll('.pv-zone').forEach(z => z.classList.remove('active'));
+        document.querySelectorAll('.q-card').forEach(c => c.classList.remove('active'));
+        const zone = document.getElementById('zone-' + id);
         if (zone) zone.classList.add('active');
-        const card = document.getElementById('card-' + idx);
+        const card = document.getElementById('card-' + id);
         if (card) {
             card.classList.add('active');
             card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
-        drawPreview(idx);
+        schedulePreview(id);
     }
 
-    function clearSelection() {
-        document.querySelectorAll('.adjust-q-zone.active').forEach(z => z.classList.remove('active'));
-        document.querySelectorAll('.adjust-detail-card.active').forEach(c => c.classList.remove('active'));
-        selectedIndex = null;
+    // ── Page switching ───────────────────────────────────────────────
+    function switchPage(page) {
+        currentPage = page;
+        if (pageImages[page]) pageImg.src = pageImages[page];
+        document.querySelectorAll('.pv-page-tab').forEach(t => {
+            t.classList.toggle('active', parseInt(t.dataset.page) === page);
+        });
+        document.querySelectorAll('.pv-zone').forEach(z => {
+            z.style.display = parseInt(z.dataset.page) === page ? '' : 'none';
+        });
     }
 
-    // Click on zone → select
-    overlay.addEventListener('click', function(e) {
-        const zone = e.target.closest('.adjust-q-zone');
+    // ── Zone position update ─────────────────────────────────────────
+    function updateZonePos(id) {
+        const q = questions.find(x => x.id === id);
+        if (!q) return;
+        const zone = document.getElementById('zone-' + id);
         if (!zone) return;
-        selectQuestion(parseInt(zone.dataset.index));
-    });
+        const p = q.pos;
+        zone.style.left   = p.x_start + '%';
+        zone.style.width  = Math.max(1, p.x_end - p.x_start) + '%';
+        zone.style.top    = p.y_start + '%';
+        zone.style.height = Math.max(1, p.y_end - p.y_start) + '%';
+    }
 
-    // Click on detail card → select zone (bidirectional)
-    document.getElementById('detailList').addEventListener('click', function(e) {
-        const card = e.target.closest('.adjust-detail-card');
-        if (!card) return;
-        // Don't re-select when interacting with inputs
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        const idx = parseInt(card.dataset.index);
-        selectQuestion(idx);
-        // Also scroll the zone into view
-        const zone = document.getElementById('zone-' + idx);
-        if (zone) zone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-
-    // ── Canvas preview ──
-    function drawPreview(idx) {
-        const canvas = document.getElementById('canvas-' + idx);
-        if (!canvas) return;
-        const pos = positions[idx];
-        const ctx = canvas.getContext('2d');
-        if (!pageImage.complete || !pageImage.naturalWidth) {
-            pageImage.addEventListener('load', function h() {
-                pageImage.removeEventListener('load', h);
-                drawPreview(idx);
-            }, { once: true });
-            return;
+    // ── Canvas preview ───────────────────────────────────────────────
+    function schedulePreview(id) {
+        if (!pageImg || !pageImg.complete || !pageImg.naturalWidth) {
+            pageImg?.addEventListener('load', () => drawPreview(id), { once: true });
+        } else {
+            drawPreview(id);
         }
-        const imgW = pageImage.naturalWidth;
-        const imgH = pageImage.naturalHeight;
-        const sx = Math.max(0, imgW * pos.x_start / 100);
-        const sw = Math.max(1, imgW * (pos.x_end - pos.x_start) / 100);
-        const sy = Math.max(0, imgH * pos.y_start / 100);
-        const sh = Math.max(1, imgH * (pos.y_end - pos.y_start) / 100);
-        const displayW = Math.min(360, sw);
-        const scale = displayW / sw;
-        const displayH = Math.max(1, sh * scale);
-        canvas.width = sw;
+    }
+
+    function drawPreview(id) {
+        const q = questions.find(x => x.id === id);
+        if (!q) return;
+        const canvas = document.getElementById('preview-' + id);
+        if (!canvas || !pageImg.naturalWidth) return;
+        if (q.page !== currentPage) return; // only draw for current page
+
+        const pos = q.pos;
+        const iw = pageImg.naturalWidth, ih = pageImg.naturalHeight;
+        const sx = Math.max(0, iw * pos.x_start / 100);
+        const sy = Math.max(0, ih * pos.y_start / 100);
+        const sw = Math.max(1, iw * (pos.x_end - pos.x_start) / 100);
+        const sh = Math.max(1, ih * (pos.y_end - pos.y_start) / 100);
+
+        const maxW = 320;
+        const dispW = Math.min(maxW, sw);
+        const scale = dispW / sw;
+        canvas.width  = sw;
         canvas.height = sh;
-        canvas.style.width = displayW + 'px';
-        canvas.style.height = displayH + 'px';
+        canvas.style.width  = dispW + 'px';
+        canvas.style.height = Math.max(1, sh * scale) + 'px';
+
+        const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(pageImage, sx, sy, sw, sh, 0, 0, sw, sh);
+        ctx.drawImage(pageImg, sx, sy, sw, sh, 0, 0, sw, sh);
     }
 
-    function refreshPreview() {
-        if (selectedIndex !== null) drawPreview(selectedIndex);
-    }
-
-    pageImage.addEventListener('load', function() {
-        refreshPreview();
-        updateAllZonePositions();
+    // Redraw previews for current page after image loads
+    pageImg?.addEventListener('load', function () {
+        questions.filter(q => q.page === currentPage).forEach(q => drawPreview(q.id));
     });
 
-    // ── Drag handling ──
-    const EDGE = 16; // px from edge for resize
-    let dragState = null;
+    // ── Drag / resize handling ───────────────────────────────────────
+    const EDGE = 14;
 
-    function getDragMode(zone, clientX, clientY) {
-        const rect = zone.getBoundingClientRect();
-        const rx = clientX - rect.left;
-        const ry = clientY - rect.top;
-        const w = rect.width, h = rect.height;
-        const nearL = rx < EDGE;
-        const nearR = rx > w - EDGE;
-        const nearT = ry < EDGE;
-        const nearB = ry > h - EDGE;
+    function getDragHandle(zone, cx, cy) {
+        const r = zone.getBoundingClientRect();
+        const rx = cx - r.left, ry = cy - r.top;
+        const w = r.width, h = r.height;
+        const nearL = rx < EDGE, nearR = rx > w - EDGE;
+        const nearT = ry < EDGE, nearB = ry > h - EDGE;
         const corner = (nearL || nearR) && (nearT || nearB);
-        const edge = (nearL || nearR || nearT || nearB) && !corner;
+        const edge   = !corner && (nearL || nearR || nearT || nearB);
         const inside = rx >= 0 && rx <= w && ry >= 0 && ry <= h;
-        return { corner, edge, inside, nearL, nearR, nearT, nearB,
-                 handle: corner ? (nearT ? 'n' : 's') + (nearL ? 'w' : 'e')
-                       : edge ? (nearT ? 'n' : nearB ? 's' : nearL ? 'w' : 'e')
-                       : (inside ? 'move' : null) };
+        if (corner) return (nearT ? 'n' : 's') + (nearL ? 'w' : 'e');
+        if (edge)   return nearT ? 'n' : nearB ? 's' : nearL ? 'w' : 'e';
+        if (inside) return 'move';
+        return null;
     }
 
-    const CURSOR_MAP = {
-        'nw': 'nw-resize', 'ne': 'ne-resize', 'sw': 'sw-resize', 'se': 'se-resize',
-        'n': 'n-resize', 's': 's-resize', 'w': 'w-resize', 'e': 'e-resize',
-        'move': 'move'
+    const CURSORS = {
+        nw: 'nw-resize', ne: 'ne-resize', sw: 'sw-resize', se: 'se-resize',
+        n: 'n-resize', s: 's-resize', w: 'w-resize', e: 'e-resize',
+        move: 'move',
     };
 
-    document.addEventListener('mousedown', function(e) {
-        const zone = e.target.closest('.adjust-q-zone');
+    document.addEventListener('mousedown', function (e) {
+        const zone = e.target.closest('.pv-zone');
         if (!zone) return;
-        const idx = parseInt(zone.dataset.index);
-        const mode = getDragMode(zone, e.clientX, e.clientY);
-        if (!mode || !mode.handle) return;
+        const id = zone.dataset.id;
+        const handle = getDragHandle(zone, e.clientX, e.clientY);
+        if (!handle) return;
 
-        selectQuestion(idx);
+        const q = questions.find(x => x.id === id);
+        if (!q) return;
+        selectQuestion(id);
 
-        const imgRect = pageImage.getBoundingClientRect();
-        const imgW = imgRect.width;
-        const imgH = imgRect.height;
-        if (!imgW || !imgH) return;
-
+        const imgRect = pageImg.getBoundingClientRect();
         dragState = {
-            index: idx,
-            handle: mode.handle,
-            startX: e.clientX,
-            startY: e.clientY,
-            startPos: { ...positions[idx] },
-            imgW: imgW,
-            imgH: imgH,
+            id, handle,
+            startX: e.clientX, startY: e.clientY,
+            startPos: { ...q.pos },
+            imgW: imgRect.width, imgH: imgRect.height,
         };
-        document.body.style.cursor = CURSOR_MAP[mode.handle] || 'move';
+        document.body.style.cursor = CURSORS[handle] || 'move';
         e.preventDefault();
     });
 
-    document.addEventListener('mousemove', function(e) {
+    document.addEventListener('mousemove', function (e) {
         if (!dragState) {
-            // Cursor hint
-            const zone = e.target.closest('.adjust-q-zone');
+            const zone = e.target.closest('.pv-zone');
             if (zone) {
-                const mode = getDragMode(zone, e.clientX, e.clientY);
-                document.body.style.cursor = mode.handle ? (CURSOR_MAP[mode.handle] || 'default') : 'default';
+                const h = getDragHandle(zone, e.clientX, e.clientY);
+                zone.style.cursor = h ? (CURSORS[h] || 'default') : 'default';
+                if (_lastHoveredZone && _lastHoveredZone !== zone) {
+                    _lastHoveredZone.style.cursor = '';
+                }
+                _lastHoveredZone = zone;
             } else {
-                document.body.style.cursor = '';
+                if (_lastHoveredZone) {
+                    _lastHoveredZone.style.cursor = '';
+                    _lastHoveredZone = null;
+                }
             }
             return;
         }
 
-        const dxPx = e.clientX - dragState.startX;
-        const dyPx = e.clientY - dragState.startY;
-        const dxPct = dxPx / dragState.imgW * 100;
-        const dyPct = dyPx / dragState.imgH * 100;
-        const pos = positions[dragState.index];
-        const sp = dragState.startPos;
-        const handle = dragState.handle;
+        const { id, handle, startX, startY, startPos, imgW, imgH } = dragState;
+        const q = questions.find(x => x.id === id);
+        if (!q) return;
 
-        // X-axis changes
-        if (handle.includes('w')) {
-            pos.x_start = clamp(sp.x_start + dxPct, 0, pos.x_end - 2);
-        } else if (handle.includes('e')) {
-            pos.x_end = clamp(sp.x_end + dxPct, pos.x_start + 2, 100);
-        } else if (handle === 'move') {
-            const newW = sp.x_end - sp.x_start;
-            pos.x_start = clamp(sp.x_start + dxPct, 0, 100 - newW);
-            pos.x_end = pos.x_start + newW;
+        const dxP = (e.clientX - startX) / imgW * 100;
+        const dyP = (e.clientY - startY) / imgH * 100;
+        const p = q.pos, sp = startPos;
+
+        if (handle.includes('w'))      p.x_start = clamp(sp.x_start + dxP, 0, p.x_end - 2);
+        else if (handle.includes('e')) p.x_end   = clamp(sp.x_end   + dxP, p.x_start + 2, 100);
+        if (handle.includes('n'))      p.y_start = clamp(sp.y_start + dyP, 0, p.y_end - 2);
+        else if (handle.includes('s')) p.y_end   = clamp(sp.y_end   + dyP, p.y_start + 2, 100);
+
+        if (handle === 'move') {
+            const w = sp.x_end - sp.x_start, h = sp.y_end - sp.y_start;
+            p.x_start = clamp(sp.x_start + dxP, 0, 100 - w);
+            p.x_end   = p.x_start + w;
+            p.y_start = clamp(sp.y_start + dyP, 0, 100 - h);
+            p.y_end   = p.y_start + h;
         }
 
-        // Y-axis changes
-        if (handle.includes('n')) {
-            pos.y_start = clamp(sp.y_start + dyPct, 0, pos.y_end - 2);
-        } else if (handle.includes('s')) {
-            pos.y_end = clamp(sp.y_end + dyPct, pos.y_start + 2, 100);
-        } else if (handle === 'move') {
-            const newH = sp.y_end - sp.y_start;
-            pos.y_start = clamp(sp.y_start + dyPct, 0, 100 - newH);
-            pos.y_end = pos.y_start + newH;
-        }
+        for (const k of ['x_start', 'x_end', 'y_start', 'y_end'])
+            p[k] = Math.round(p[k] * 10) / 10;
 
-        // Round
-        for (const k of ['x_start', 'x_end', 'y_start', 'y_end']) {
-            pos[k] = Math.round(pos[k] * 10) / 10;
-        }
-
-        updateZonePosition(dragState.index);
-        refreshPreview();
+        updateZonePos(id);
+        drawPreview(id);
     });
 
-    document.addEventListener('mouseup', function() {
+    document.addEventListener('mouseup', function () {
         if (dragState) {
-            updatePositionInput();
+            if (_lastHoveredZone) _lastHoveredZone.style.cursor = '';
             dragState = null;
             document.body.style.cursor = '';
         }
     });
 
-    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-    function updateZonePosition(idx) {
-        const zone = document.getElementById('zone-' + idx);
-        if (!zone) return;
-        const p = positions[idx];
-        zone.style.left = p.x_start + '%';
-        zone.style.width = Math.max(1, p.x_end - p.x_start) + '%';
-        zone.style.top = p.y_start + '%';
-        zone.style.height = Math.max(1, p.y_end - p.y_start) + '%';
-        zone.dataset.xStart = p.x_start; zone.dataset.xEnd = p.x_end;
-        zone.dataset.yStart = p.y_start; zone.dataset.yEnd = p.y_end;
-    }
-
-    function updateAllZonePositions() {
-        for (const idx in positions) updateZonePosition(parseInt(idx));
-    }
-
-    function updatePositionInput() {
-        positionInput.value = JSON.stringify(positions);
-    }
-
-    // ── Confirm ──
-    btnConfirm.addEventListener('click', function(e) {
-        e.preventDefault();
-        updatePositionInput();
-        confirmForm.submit();
+    // Click on zone → select
+    overlay.addEventListener('click', function (e) {
+        const zone = e.target.closest('.pv-zone');
+        if (zone) selectQuestion(zone.dataset.id);
     });
 
-    // ── Init ──
-    updatePositionInput();
+    // ── Recognize ───────────────────────────────────────────────────
+    btnRec.addEventListener('click', async function () {
+        const unrecognized = questions.filter(q => !q.recognized);
+        if (!unrecognized.length) {
+            alert('所有题目已识别。如需重新识别，请先删除题目再重新添加。');
+            return;
+        }
 
-    pageImage.addEventListener('load', function() {
-        document.querySelectorAll('.adc-canvas').forEach(canvas => {
-            const idx = parseInt(canvas.id.replace('canvas-', ''));
-            if (positions[idx]) drawPreview(idx);
+        btnRec.disabled = true;
+        btnRec.textContent = '识别中…';
+
+        unrecognized.forEach(q => {
+            const st = document.getElementById('status-' + q.id);
+            if (st) { st.textContent = '识别中…'; st.className = 'qc-status recognizing'; }
+        });
+
+        try {
+            const resp = await fetch(`/paper/review/${taskId}/recognize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    questions: unrecognized.map(q => ({
+                        id: q.id,
+                        question_number: q.number,
+                        page: q.page,
+                        x_start: q.pos.x_start,
+                        y_start: q.pos.y_start,
+                        x_end: q.pos.x_end,
+                        y_end: q.pos.y_end,
+                    })),
+                }),
+            });
+
+            const data = await resp.json();
+            if (data.error) {
+                alert('识别失败：' + data.error);
+                unrecognized.forEach(q => {
+                    const st = document.getElementById('status-' + q.id);
+                    if (st) { st.textContent = '失败'; st.className = 'qc-status failed'; }
+                });
+                return;
+            }
+
+            (data.results || []).forEach(r => {
+                const q = questions.find(x => x.id === r.id);
+                if (!q) return;
+                const st      = document.getElementById('status-'  + r.id);
+                const input   = document.getElementById('content-' + r.id);
+                if (r.error) {
+                    if (st) { st.textContent = '失败'; st.className = 'qc-status failed'; }
+                    return;
+                }
+                q.content    = r.content || '';
+                q.image      = r.image   || null;
+                q.recognized = true;
+                if (st)    { st.textContent = '已识别'; st.className = 'qc-status recognized'; }
+                if (input) input.value = q.content;
+            });
+        } catch (err) {
+            alert('识别请求出错：' + err.message);
+        } finally {
+            btnRec.disabled = false;
+            btnRec.textContent = '识别';
+        }
+    });
+
+    // ── Confirm import ───────────────────────────────────────────────
+    btnImport.addEventListener('click', function () {
+        if (!questions.length) {
+            alert('请先添加题目并框选范围。');
+            return;
+        }
+        const unrecognized = questions.filter(q => !q.recognized);
+        if (unrecognized.length > 0) {
+            const proceed = confirm(
+                `还有 ${unrecognized.length} 道题目未识别（无文字内容），确认直接导入图片吗？`
+            );
+            if (!proceed) return;
+        }
+        const payload = questions.map(q => ({
+            id:              q.id,
+            question_number: q.number,
+            content:         q.content,
+            page:            q.page,
+            x_start:         q.pos.x_start,
+            y_start:         q.pos.y_start,
+            x_end:           q.pos.x_end,
+            y_end:           q.pos.y_end,
+            image:           q.image,
+        }));
+        document.getElementById('questionsJsonInput').value = JSON.stringify(payload);
+        document.getElementById('confirmForm').submit();
+    });
+
+    // ── Page tab events ──────────────────────────────────────────────
+    document.querySelectorAll('.pv-page-tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            switchPage(parseInt(this.dataset.page));
         });
     });
 
-    setTimeout(function() {
-        if (pageImage.complete && pageImage.naturalWidth) {
-            document.querySelectorAll('.adc-canvas').forEach(canvas => {
-                const idx = parseInt(canvas.id.replace('canvas-', ''));
-                if (positions[idx]) drawPreview(idx);
-            });
-        }
-    }, 300);
+    // ── Add button ───────────────────────────────────────────────────
+    btnAdd.addEventListener('click', addQuestion);
 
 })();
 </script>

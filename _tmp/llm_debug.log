@@ -1,0 +1,219 @@
+[2026-05-02T15:25:06.985666] _run_llm_analysis START
+[2026-05-02T15:25:06.986330] Built user prompt, length: 4021
+[2026-05-02T15:25:06.986963] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-02T15:25:06.998515] System prompt length: 1738, from_custom: True
+[2026-05-02T15:25:06.999194] Calling _call_llm...
+[2026-05-02T15:25:06.999726] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-02T15:25:07.000541] System prompt length: 1738, User prompt length: 4021
+[2026-05-02T15:26:01.162770] HTTP 200
+[2026-05-02T15:26:01.163678] Response blocks: 1, types: ['text']
+[2026-05-02T15:26:01.164473] Content length: 5023, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "完形填空中根据上下文语境选择正确词汇（名词辨析：disorder/mechanism/need/therapy）",
+    "syllabus_section": "英语词汇运用与语篇理解（完形填空）",
+    "ai_analysis": "1) 题目考察：本题考察学生对心理学术语在语境中的准确理解。原文说的是Dr. Kruglanski对「closure」的定义——'It's a psychological __3__ that tells you: I have enough inform
+[2026-05-02T15:26:01.165792] Extracted from markdown, new length: 5011
+[2026-05-02T15:26:01.166551] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:26:01.167639] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:26:01.168203] _parse_llm_response OK
+[2026-05-02T15:27:14.222791] _run_llm_analysis START
+[2026-05-02T15:27:14.223733] Built user prompt, length: 4021
+[2026-05-02T15:27:14.224499] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-02T15:27:14.225344] System prompt length: 1738, from_custom: True
+[2026-05-02T15:27:14.226121] Calling _call_llm...
+[2026-05-02T15:27:14.226629] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-02T15:27:14.227246] System prompt length: 1738, User prompt length: 4021
+[2026-05-02T15:28:07.472274] HTTP 200
+[2026-05-02T15:28:07.473670] Response blocks: 1, types: ['text']
+[2026-05-02T15:28:07.474363] Content length: 4399, stop_reason: end_turn, preview: {
+  "step1": {
+    "knowledge_points": "上下文语境推断、词义辨析（mechanism / need / therapy / disorder）、学术词汇在议论文中的使用",
+    "syllabus_section": "上海市高考英语——完形填空（Cloze）之语篇理解与词汇选择",
+    "ai_analysis": "这道题考察的是在议论文语境中根据上下文推断词义的能力。第3题的句子是：「It’s a psychological __3__ that tells you: I have enough information — now I ca
+[2026-05-02T15:28:07.475053] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:28:07.476406] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:28:07.477245] _parse_llm_response OK
+[2026-05-02T15:33:58.200003] _run_llm_analysis START
+[2026-05-02T15:33:58.201176] Built user prompt, length: 4021
+[2026-05-02T15:33:58.202482] Config: api_url=https://ark.cn-beijing.volces.com/api/v3/chat/completions, model=doubao-seed-2-0-pro-260215, key_ok=True
+[2026-05-02T15:33:58.203954] System prompt length: 1738, from_custom: True
+[2026-05-02T15:33:58.204786] Calling _call_llm...
+[2026-05-02T15:33:58.205487] Calling https://ark.cn-beijing.volces.com/api/v3/chat/completions model=doubao-seed-2-0-pro-260215
+[2026-05-02T15:33:58.206193] System prompt length: 1738, User prompt length: 4021
+[2026-05-02T15:33:59.302152] HTTP 401
+[2026-05-02T15:33:59.303276] EXCEPTION: HTTPError: 401 Client Error: Unauthorized for url: https://ark.cn-beijing.volces.com/api/v3/chat/completions
+[2026-05-02T15:33:59.364207] LLM ERROR: HTTPError: 401 Client Error: Unauthorized for url: https://ark.cn-beijing.volces.com/api/v3/chat/completions
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 329, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 388, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 126, in _call_llm
+    resp.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://ark.cn-beijing.volces.com/api/v3/chat/completions
+
+[2026-05-02T15:39:05.013204] _run_llm_analysis START
+[2026-05-02T15:39:05.013962] Built user prompt, length: 4021
+[2026-05-02T15:39:05.014504] Config: api_url=https://ark.cn-beijing.volces.com/api/v3/chat/completions, model=doubao-seed-2-0-pro-260215, key_ok=True
+[2026-05-02T15:39:05.015053] System prompt length: 1738, from_custom: True
+[2026-05-02T15:39:05.015840] Calling _call_llm...
+[2026-05-02T15:39:05.016464] Calling https://ark.cn-beijing.volces.com/api/v3/chat/completions model=doubao-seed-2-0-pro-260215
+[2026-05-02T15:39:05.017039] System prompt length: 1738, User prompt length: 4021
+[2026-05-02T15:41:05.798552] EXCEPTION: ReadTimeout: HTTPSConnectionPool(host='ark.cn-beijing.volces.com', port=443): Read timed out. (read timeout=120)
+[2026-05-02T15:41:06.090609] LLM ERROR: ReadTimeout: HTTPSConnectionPool(host='ark.cn-beijing.volces.com', port=443): Read timed out. (read timeout=120)
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.py", line 565, in getresponse
+    httplib_response = super().getresponse()
+  File "C:\Python314\Lib\http\client.py", line 1430, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\http\client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\http\client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\socket.py", line 725, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Python314\Lib\ssl.py", line 1304, in recv_into
+    return self.read(nbytes, buffer)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\ssl.py", line 1138, in read
+    return self._sslobj.read(len, buffer)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+TimeoutError: The read operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\retry.py", line 474, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\util.py", line 39, in reraise
+    raise value
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 536, in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 367, in _raise_timeout
+    raise ReadTimeoutError(
+        self, url, f"Read timed out. (read timeout={timeout_value})"
+    ) from err
+urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='ark.cn-beijing.volces.com', port=443): Read timed out. (read timeout=120)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 347, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 406, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 125, in _call_llm
+    resp = requests.post(api_url, headers=headers, json=body, timeout=120)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 690, in send
+    raise ReadTimeout(e, request=request)
+requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='ark.cn-beijing.volces.com', port=443): Read timed out. (read timeout=120)
+
+[2026-05-02T15:46:27.356282] _run_llm_analysis START
+[2026-05-02T15:46:27.357269] Built user prompt, length: 4021
+[2026-05-02T15:46:27.357861] Config: api_url=https://ark.cn-beijing.volces.com/api/v3/chat/completions, model=doubao-seed-2-0-pro-260215, key_ok=True
+[2026-05-02T15:46:27.358516] System prompt length: 1738, from_custom: True
+[2026-05-02T15:46:27.359126] Calling _call_llm...
+[2026-05-02T15:46:27.359630] Calling https://ark.cn-beijing.volces.com/api/v3/chat/completions model=doubao-seed-2-0-pro-260215
+[2026-05-02T15:46:27.360055] System prompt length: 1738, User prompt length: 4021
+[2026-05-02T15:47:49.999272] HTTP 200
+[2026-05-02T15:47:50.000096] Content length: 3451, finish_reason: stop
+[2026-05-02T15:47:50.000834] Extracted from markdown, new length: 3439
+[2026-05-02T15:47:50.001402] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:47:50.003072] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T15:47:50.004196] _parse_llm_response OK
+[2026-05-02T16:15:29.586202] _run_llm_analysis START
+[2026-05-02T16:15:29.587063] Built user prompt, length: 424
+[2026-05-02T16:15:29.587926] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-02T16:15:29.588523] System prompt length: 1738, from_custom: True
+[2026-05-02T16:15:29.589235] Calling _call_llm...
+[2026-05-02T16:15:29.589820] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-02T16:15:29.590368] System prompt length: 1738, User prompt length: 424
+[2026-05-02T16:16:31.365766] HTTP 200
+[2026-05-02T16:16:31.367789] Response blocks: 1, types: ['text']
+[2026-05-02T16:16:31.368930] Content length: 6420, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "椭圆的标准方程与几何性质（焦点、顶点、焦半径）、椭圆的焦点三角形、直线与椭圆的联立求交点、三角形面积计算",
+    "syllabus_section": "解析几何——椭圆",
+    "ai_analysis": "1) 题目考察：第(1)小题考察椭圆的基本性质，利用半通径（焦点弦垂直于长轴时的半焦点弦长度）和椭圆定义求焦半径；第(2)小题考察在椭圆上找满足面积条件的点，需要建立直线方程、利用点到直线距离公式结合面积公式求解。2) 学生错误根源可能包括：对半通径公式不熟悉导致第(1)题计算错误
+[2026-05-02T16:16:31.370268] Extracted from markdown, new length: 6408
+[2026-05-02T16:16:31.370998] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:16:31.371788] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:16:31.372437] _parse_llm_response OK
+[2026-05-02T16:23:38.463830] _run_llm_analysis START
+[2026-05-02T16:23:38.464796] Built user prompt, length: 424
+[2026-05-02T16:23:38.465622] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-02T16:23:38.466566] System prompt length: 1738, from_custom: True
+[2026-05-02T16:23:38.467503] Calling _call_llm...
+[2026-05-02T16:23:38.468339] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-02T16:23:38.469205] System prompt length: 1738, User prompt length: 424
+[2026-05-02T16:25:11.229982] HTTP 200
+[2026-05-02T16:25:11.230818] Response blocks: 1, types: ['text']
+[2026-05-02T16:25:11.231290] Content length: 10276, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "椭圆的标准方程、焦点半径公式、椭圆上点到焦点距离的计算、直线与椭圆联立求交点、三角形面积计算",
+    "syllabus_section": "解析几何——椭圆",
+    "ai_analysis": "1) 题目考察：第(1)小题考察椭圆的焦点半径（通径）计算，利用椭圆定义和几何关系求|PF2|；第(2)小题考察在椭圆上寻找满足面积条件的点Q，需要将面积条件转化为点到直线的距离条件，再与椭圆方程联立求解。2) 学生可能的错误根源：第(1)题可能不熟悉半通径公式或焦点半径公式的运用；第(2)题
+[2026-05-02T16:25:11.231765] Extracted from markdown, new length: 10264
+[2026-05-02T16:25:11.232180] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:25:11.232716] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:25:11.233179] _parse_llm_response OK
+[2026-05-02T16:30:38.105857] _run_llm_analysis START
+[2026-05-02T16:30:38.107273] Built user prompt, length: 299
+[2026-05-02T16:30:38.108705] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-02T16:30:38.110492] System prompt length: 1738, from_custom: True
+[2026-05-02T16:30:38.112196] Calling _call_llm...
+[2026-05-02T16:30:38.113685] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-02T16:30:38.115287] System prompt length: 1738, User prompt length: 299
+[2026-05-02T16:31:54.654917] HTTP 200
+[2026-05-02T16:31:54.655784] Response blocks: 1, types: ['text']
+[2026-05-02T16:31:54.656801] Content length: 6274, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "立体几何中圆柱内的线面关系证明、线面角的求解、空间向量法或综合几何法",
+    "syllabus_section": "立体几何——空间中的平行与垂直关系、空间角的计算",
+    "ai_analysis": "1) 题目考察：第(1)小题考察空间中线线垂直的证明，需要利用圆柱的性质（母线垂直底面）以及直径所对圆周角为直角等性质，通过证明AF垂直于平面BDE来得到AF⊥DB；第(2)小题考察体积比条件确定几何量，再求线面角。2) 学生错误根源可能包括：①未能识别圆柱中母线AD⊥底面的关键性质；
+[2026-05-02T16:31:54.657456] Extracted from markdown, new length: 6262
+[2026-05-02T16:31:54.658089] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:31:54.658887] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-02T16:31:54.659727] _parse_llm_response OK

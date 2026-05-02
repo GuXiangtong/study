@@ -3,8 +3,8 @@ import os
 import shutil
 import uuid
 
-from flask import (Blueprint, flash, redirect, render_template, request,
-                   send_from_directory, url_for, session)
+from flask import (Blueprint, flash, jsonify, redirect, render_template,
+                   request, send_from_directory, url_for, session)
 
 from config import BASE_DIR, PAPER_TEMP_DIR
 from utils.decorators import login_required
@@ -12,8 +12,8 @@ from models.exam import create_exam, get_exam, get_all_exams
 from models.question import create_question
 from models.subject import get_all_subjects
 from services.paper_service import (cleanup_old_tasks, cleanup_task,
-                                    load_result, process_paper, recrop_question,
-                                    save_result)
+                                    crop_region, load_result, prepare_paper,
+                                    recognize_question_images, save_result)
 
 paper_bp = Blueprint('paper', __name__)
 
@@ -55,7 +55,7 @@ def upload():
 
     task_id = str(uuid.uuid4())
     try:
-        result = process_paper(file, task_id, user_id=user_id)
+        result = prepare_paper(file, task_id)
     except Exception as e:
         flash(f'试卷处理失败：{e}', 'error')
         return redirect(url_for('paper.upload'))
@@ -63,10 +63,6 @@ def upload():
     result['subject_id'] = subject_id
     result['exam_id'] = exam_id
     save_result(task_id, result)
-
-    if result.get('errors'):
-        for err in result['errors']:
-            flash(err, 'error')
 
     return redirect(url_for('paper.review', task_id=task_id))
 
@@ -89,9 +85,33 @@ def review(task_id):
         exam = get_exam(result['exam_id'])
         exam_name = exam['name'] if exam else ''
 
-    return render_template('paper/review.html', result=result, subjects=subjects,
+    return render_template('paper/review.html', result=result,
                            subject_name=subject_name, exam_name=exam_name,
                            task_id=task_id)
+
+
+@paper_bp.route('/paper/review/<task_id>/recognize', methods=['POST'])
+@login_required
+def recognize(task_id):
+    result = load_result(task_id)
+    if not result:
+        return jsonify({'error': '任务不存在或已过期'}), 404
+
+    user_id = session['user_id']
+    data = request.get_json()
+    if not data or 'questions' not in data:
+        return jsonify({'error': '无效请求'}), 400
+
+    questions_data = data['questions']
+    if not questions_data:
+        return jsonify({'results': []})
+
+    try:
+        results = recognize_question_images(task_id, questions_data, user_id=user_id)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'results': results})
 
 
 @paper_bp.route('/paper/review/<task_id>/confirm', methods=['POST'])
@@ -103,15 +123,12 @@ def confirm(task_id):
         flash('处理任务不存在或已过期', 'error')
         return redirect(url_for('paper.upload'))
 
-    selected_indices = request.form.getlist('selected')
-    question_numbers = request.form.getlist('question_number')
-    stems = request.form.getlist('stem')
-    question_positions_raw = request.form.get('question_positions', '{}')
-
+    questions_json = request.form.get('questions_json', '[]')
     try:
-        question_positions = json.loads(question_positions_raw)
-    except (json.JSONDecodeError, TypeError):
-        question_positions = {}
+        questions_data = json.loads(questions_json)
+    except json.JSONDecodeError:
+        flash('题目数据解析失败', 'error')
+        return redirect(url_for('paper.review', task_id=task_id))
 
     subject_id = result.get('subject_id')
     exam_id = result.get('exam_id')
@@ -125,52 +142,46 @@ def confirm(task_id):
         flash('学科或考试信息缺失', 'error')
         return redirect(url_for('paper.review', task_id=task_id))
 
-    questions = result.get('questions', [])
     task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
     questions_dir = os.path.join(task_dir, 'questions')
 
     imported = 0
-    for idx_str in selected_indices:
-        idx = int(idx_str)
-        if idx < 0 or idx >= len(questions):
+    for q in questions_data:
+        q_id = q.get('id', '')
+        q_num = str(q.get('question_number', '')).strip()
+        content = str(q.get('content', '')).strip()
+        page = int(q.get('page', 1))
+        x_start = float(q.get('x_start', 0))
+        y_start = float(q.get('y_start', 0))
+        x_end = float(q.get('x_end', 100))
+        y_end = float(q.get('y_end', 100))
+
+        if not q_num:
             continue
 
-        q = questions[idx]
-
-        q_num = question_numbers[idx].strip() if idx < len(question_numbers) else ''
-        if not q_num:
-            q_num = q.get('question_number', str(idx + 1))
-
-        stem = stems[idx].strip() if idx < len(stems) else ''
-
-        # Apply user-adjusted crop positions if provided
-        pos_key = str(idx)
-        if pos_key in question_positions:
-            pos = question_positions[pos_key]
-            new_y_start = float(pos.get('y_start', q.get('crop_y_start', q.get('y_start', 0))))
-            new_y_end = float(pos.get('y_end', q.get('crop_y_end', q.get('y_end', 100))))
-            new_x_start = float(pos.get('x_start', q.get('crop_x_start', 0)))
-            new_x_end = float(pos.get('x_end', q.get('crop_x_end', 100)))
-            page_num = q.get('page', 1)
-            new_img = recrop_question(task_id, page_num,
-                                       new_y_start, new_y_end, idx,
-                                       x_start=new_x_start, x_end=new_x_end)
-            if new_img:
-                q['image'] = new_img
+        # Use already-cropped image from recognition step if available
+        img_name = q.get('image') or ''
+        img_path = os.path.join(questions_dir, img_name) if img_name else ''
+        if not img_path or not os.path.isfile(img_path):
+            # Crop now (question was not recognized)
+            new_name = crop_region(task_id, page, x_start, y_start, x_end, y_end,
+                                   f'{q_id}_crop')
+            if new_name:
+                img_name = new_name
+                img_path = os.path.join(questions_dir, img_name)
+            else:
+                img_path = None
 
         image_path = None
-        q_img_name = q.get('image', '')
-        if q_img_name:
-            src = os.path.join(questions_dir, q_img_name)
-            if os.path.isfile(src):
-                dest_dir = os.path.join(BASE_DIR, subject_name, exam_name)
-                os.makedirs(dest_dir, exist_ok=True)
-                dest_file = f"{q_num}.png"
-                shutil.copy(src, os.path.join(dest_dir, dest_file))
-                image_path = f"{subject_name}/{exam_name}/{dest_file}"
+        if img_path and os.path.isfile(img_path):
+            dest_dir = os.path.join(BASE_DIR, subject_name, exam_name)
+            os.makedirs(dest_dir, exist_ok=True)
+            dest_file = f'{q_num}.png'
+            shutil.copy(img_path, os.path.join(dest_dir, dest_file))
+            image_path = f'{subject_name}/{exam_name}/{dest_file}'
 
-        stem_value = stem if stem else q.get('content', '').strip()
-        create_question(exam_id, q_num, stem=stem_value or None, image_path=image_path, user_id=user_id)
+        create_question(exam_id, q_num, stem=content or None,
+                        image_path=image_path, user_id=user_id)
         imported += 1
 
     flash(f'成功导入 {imported} 道题目', 'success')

@@ -41,6 +41,40 @@ LLM_REFINE_PROMPT = """你是一个试卷题目整理助手。请根据提供的
 }
 ```"""
 
+_SINGLE_Q_PROMPT = """请识别图片中的题目内容，完整提取所有文字，并按照以下规则整理格式。
+
+## 排版顺序（重要）
+- 如果图片是左右两栏布局（左栏是各题选项编号，右栏是文章正文），必须按以下顺序输出：
+  ① 先输出完整文章正文（含编号空格）
+  ② 再逐题输出选项
+  不得按左栏→右栏的视觉顺序原样输出。
+
+## 格式要求
+- 段落之间用空行分隔，还原原图中的段落结构，不要把多段拼成一段
+- 每道子问题 (1)(2)(3) 另起一行
+- 选择题选项 A. B. C. D.（或 A/ B/ C/ D/）各占一行，选项前保留两个空格缩进
+- 阅读理解：文章部分与题目部分之间用两个空行明显分隔；题目之间用一个空行分隔
+- 完形填空空格：无论原图用横线还是数字，一律用 __数字__ 表示（如 __1__、__2__）
+- 其他填空横线用 ____ 表示（四个下划线）
+- 数学公式使用 LaTeX 语法：行内用 $...$，行间用 $$...$$
+- 如有图形或表格，标注 [图] 或 [表格]
+
+## 输出格式
+只输出 JSON，格式：{"content": "整理后的题目内容，段落间含空行"}"""
+
+_REFINE_SINGLE_Q_PROMPT = """你是一个高考题目文字整理助手。请对以下 OCR 识别的原始文字进行格式整理。
+
+## 整理规则
+1. 段落之间插入空行，不要将多个段落连成一行
+2. 每道子问题 (1)(2)(3) 另起一行
+3. 选择题选项 A. B. C. D.（含 A/ B/ C/ D/、A、B、C、D 等变体）各占一行，选项前加两个空格缩进
+4. 阅读理解：若能识别出文章和题目两部分，之间用两个空行分隔；各题之间用一个空行分隔
+5. 填空题横线统一为 ____（四个下划线）
+6. 数学公式转写为 LaTeX 语法：行内用 $...$，行间用 $$...$$
+7. 保留所有原始文字，不得删减任何内容
+
+只输出 JSON，格式：{"content": "整理后的题目内容..."}"""
+
 
 def _extract_pdf_text(pdf_path):
     """Extract text blocks with positions from a PDF using pymupdf.
@@ -94,13 +128,14 @@ def _get_recognition_method_name(user_id=None):
 def _sanitize_llm_json(text):
     """Fix LaTeX backslashes in LLM JSON output so they survive json.loads().
 
-    Doubles every backslash except \\\" and \\\\ (JSON structural escapes).
-    Intentionally does NOT preserve \\f, \\r, \\b, \\t, \\n as JSON escapes,
-    because LLM output is LaTeX-heavy and \\f means \\frac, \\r means \\right,
-    etc. — not form-feed or carriage-return control characters.
+    Doubles backslashes that are NOT valid JSON string escapes.
+    Preserves \\\" and \\\\ (JSON structural escapes) and \\n / \\t (JSON
+    whitespace escapes that LLMs use for paragraph/line breaks).
+    LaTeX commands like \\frac, \\alpha, \\sqrt start with characters not in
+    the preserved set, so they are correctly doubled.
     """
     text = re.sub(
-        r'\\(?!["\\])',
+        r'\\(?!["\\nt])',
         r'\\\\', text
     )
     return text
@@ -234,6 +269,131 @@ def _recognize_page_with_doubao(image_path, page_num, total_pages):
             return json.loads(sanitized)
         except json.JSONDecodeError:
             return {'questions': [], 'note': f'Failed to parse JSON: {raw_text[:200]}'}
+
+
+def _recognize_single_question(image_path):
+    """Recognize a single cropped question image using Doubao Seed vision API.
+
+    Returns the recognized text content string.
+    Raises RuntimeError if Doubao API key is not configured.
+    """
+    if not DOUBAO_API_KEY:
+        raise RuntimeError('视觉识别需要配置 Doubao API Key，请在设置中配置。')
+
+    data_uri = _encode_image_for_api(image_path)
+    client = _get_doubao_client()
+
+    response = client.responses.create(
+        model=DOUBAO_VISION_MODEL,
+        input=[{
+            'role': 'user',
+            'content': [
+                {'type': 'input_text', 'text': _SINGLE_Q_PROMPT},
+                {'type': 'input_image', 'image_url': data_uri},
+            ],
+        }],
+    )
+
+    raw_text = ''
+    for item in response.output:
+        if getattr(item, 'type', '') == 'message':
+            for content_block in item.content:
+                if hasattr(content_block, 'text'):
+                    raw_text += content_block.text
+
+    if not raw_text:
+        return ''
+
+    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_text, re.DOTALL)
+    if json_match:
+        raw_text = json_match.group(1)
+
+    try:
+        return json.loads(raw_text).get('content', '')
+    except json.JSONDecodeError:
+        sanitized = _sanitize_llm_json(raw_text)
+        try:
+            return json.loads(sanitized).get('content', '')
+        except json.JSONDecodeError:
+            return raw_text.strip()
+
+
+def _recognize_single_question_ocr(image_path, user_id=None):
+    """Recognize a cropped question image via PaddleOCR + LLM text refinement.
+
+    Used when the recognition method is paddleocr_deepseek. Runs OCR on the
+    cropped region, then asks the text LLM to fix LaTeX and clean up formatting.
+    Falls back to raw OCR text if the LLM call fails.
+    """
+    blocks = _extract_image_text(image_path)
+    if not blocks:
+        return ''
+
+    raw_text = '\n'.join(b['text'] for b in blocks)
+
+    api_key, api_url, model = _get_recognition_llm_config(user_id=user_id)
+    if not api_key:
+        return raw_text
+
+    is_anthropic = '/anthropic/' in api_url
+    try:
+        if is_anthropic:
+            resp = requests.post(
+                api_url,
+                headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
+                json={
+                    'model': model,
+                    'system': _REFINE_SINGLE_Q_PROMPT,
+                    'messages': [{'role': 'user', 'content': raw_text}],
+                    'temperature': 0.2,
+                    'max_tokens': 2048,
+                    'thinking': {'type': 'disabled'},
+                },
+                timeout=60,
+            )
+        else:
+            resp = requests.post(
+                api_url,
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'model': model,
+                    'messages': [
+                        {'role': 'system', 'content': _REFINE_SINGLE_Q_PROMPT},
+                        {'role': 'user', 'content': raw_text},
+                    ],
+                    'temperature': 0.2,
+                    'max_tokens': 2048,
+                },
+                timeout=60,
+            )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if is_anthropic:
+            content = ''.join(
+                b.get('text', '') for b in data.get('content', [])
+                if b.get('type') == 'text'
+            )
+        else:
+            content = data['choices'][0]['message']['content']
+
+        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(1)
+
+        try:
+            return json.loads(content).get('content', raw_text)
+        except json.JSONDecodeError:
+            sanitized = _sanitize_llm_json(content)
+            try:
+                return json.loads(sanitized).get('content', raw_text)
+            except json.JSONDecodeError:
+                return raw_text
+    except Exception:
+        return raw_text
 
 
 # ── PaddleOCR lazy singleton ────────────────────────────────────────
@@ -835,6 +995,141 @@ def process_paper(file, task_id, user_id=None):
         json.dump(result_data, f, ensure_ascii=False, indent=2)
 
     return result_data
+
+
+def prepare_paper(file, task_id):
+    """Save uploaded file and render page images. No OCR or question detection.
+
+    This is the entry point for the manual-selection workflow. After calling this,
+    the user manually draws bounding boxes for each question on the review page,
+    then calls recognize_question_images() to extract text content.
+    """
+    task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
+    pages_dir = os.path.join(task_dir, 'pages')
+    questions_dir = os.path.join(task_dir, 'questions')
+    os.makedirs(pages_dir, exist_ok=True)
+    os.makedirs(questions_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    original_path = os.path.join(task_dir, f'original{ext}')
+    file.save(original_path)
+
+    if ext == '.pdf':
+        page_images = _pdf_to_images(original_path, pages_dir)
+    else:
+        dest = os.path.join(pages_dir, f'page_001{ext}')
+        shutil.copy(original_path, dest)
+        page_images = [dest]
+
+    page_image_names = [os.path.basename(p) for p in page_images]
+
+    result_data = {
+        'task_id': task_id,
+        'original_filename': file.filename,
+        'page_count': len(page_images),
+        'page_image_names': page_image_names,
+        'questions': [],
+    }
+    with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:
+        json.dump(result_data, f, ensure_ascii=False, indent=2)
+
+    return result_data
+
+
+def crop_region(task_id, page, x_start, y_start, x_end, y_end, name):
+    """Crop a rectangular region from a page image and save it as a PNG.
+
+    Args:
+        task_id: The processing task ID.
+        page: 1-based page number.
+        x_start, y_start, x_end, y_end: Crop boundaries as percentages (0-100).
+        name: Base name for the output file (without extension).
+
+    Returns:
+        The filename of the saved crop (e.g. 'q_abc123.png'), or None on failure.
+    """
+    task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
+    pages_dir = os.path.join(task_dir, 'pages')
+    questions_dir = os.path.join(task_dir, 'questions')
+    os.makedirs(questions_dir, exist_ok=True)
+
+    page_img = os.path.join(pages_dir, f'page_{page:03d}.png')
+    if not os.path.isfile(page_img):
+        for ext in ('.jpg', '.jpeg'):
+            alt = os.path.join(pages_dir, f'page_{page:03d}{ext}')
+            if os.path.isfile(alt):
+                page_img = alt
+                break
+        else:
+            return None
+
+    img_name = f'{name}.png'
+    img_path = os.path.join(questions_dir, img_name)
+    try:
+        _crop_question(page_img, y_start, y_end, img_path, x_start=x_start, x_end=x_end)
+        return img_name
+    except Exception:
+        return None
+
+
+def recognize_question_images(task_id, questions_data, user_id=None):
+    """Crop question regions from page images and recognize their text content.
+
+    Args:
+        task_id: The processing task ID.
+        questions_data: List of dicts with keys:
+            id, page, x_start, y_start, x_end, y_end
+        user_id: Used to select the configured recognition method.
+
+    Returns:
+        List of dicts: {id, content, image} on success, or {id, error} on failure.
+    """
+    task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
+    pages_dir = os.path.join(task_dir, 'pages')
+    questions_dir = os.path.join(task_dir, 'questions')
+    os.makedirs(questions_dir, exist_ok=True)
+
+    recognition_method = _get_recognition_method_name(user_id=user_id)
+
+    results = []
+    for q in questions_data:
+        q_id = q['id']
+        page = int(q.get('page', 1))
+        x_start = float(q.get('x_start', 0))
+        y_start = float(q.get('y_start', 0))
+        x_end = float(q.get('x_end', 100))
+        y_end = float(q.get('y_end', 100))
+
+        page_img = os.path.join(pages_dir, f'page_{page:03d}.png')
+        if not os.path.isfile(page_img):
+            for ext in ('.jpg', '.jpeg'):
+                alt = os.path.join(pages_dir, f'page_{page:03d}{ext}')
+                if os.path.isfile(alt):
+                    page_img = alt
+                    break
+            else:
+                results.append({'id': q_id, 'error': f'第{page}页图片不存在'})
+                continue
+
+        img_name = f'{q_id}.png'
+        img_path = os.path.join(questions_dir, img_name)
+        try:
+            _crop_question(page_img, y_start, y_end, img_path, x_start=x_start, x_end=x_end)
+        except Exception as e:
+            results.append({'id': q_id, 'error': f'裁图失败: {e}'})
+            continue
+
+        try:
+            if recognition_method == 'doubao_seed':
+                content = _recognize_single_question(img_path)
+            else:
+                # paddleocr_deepseek: OCR the cropped image, then refine with text LLM
+                content = _recognize_single_question_ocr(img_path, user_id=user_id)
+            results.append({'id': q_id, 'content': content, 'image': img_name})
+        except Exception as e:
+            results.append({'id': q_id, 'error': str(e)})
+
+    return results
 
 
 def recrop_question(task_id, page_num, y_start, y_end, question_index,

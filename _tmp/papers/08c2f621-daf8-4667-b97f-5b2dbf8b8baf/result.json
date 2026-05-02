@@ -1,0 +1,15 @@
+{
+  "task_id": "08c2f621-daf8-4667-b97f-5b2dbf8b8baf",
+  "original_filename": "完型.jpg",
+  "page_count": 1,
+  "question_count": 0,
+  "questions": [],
+  "errors": [
+    "第1页 Doubao Seed 识别失败：Error code: 429 - {'error': {'code': 'SetLimitExceeded', 'message': 'Your account [2125728570] has reached the set inference limit for the [doubao-seed-1-6-vision] model, and the model service has been paused. To continue using this model, please visit the Model Activation page to adjust or close the \"Safe Experience Mode\". Request id: 021777700163039e8eb33bba790666117f5ace3387e1842679491', 'param': '', 'type': 'TooManyRequests'}}, request_id: 20260502133601hyiGCphrfwrS262rKcPv"
+  ],
+  "page_image_names": [
+    "page_001.jpg"
+  ],
+  "subject_id": 3,
+  "exam_id": 27
+}

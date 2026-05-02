@@ -83,7 +83,13 @@ def _build_analysis_prompt(question, sub_questions):
 
 
 def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
-    """Call DeepSeek LLM via Anthropic-compatible Messages API, return parsed JSON."""
+    """Call an LLM API and return the parsed JSON response.
+
+    Supports:
+    - Anthropic native API (/v1/messages with x-api-key)
+    - DeepSeek Anthropic-compatible API (/anthropic/v1/messages)
+    - OpenAI-compatible APIs, e.g. Doubao (/chat/completions with Bearer token)
+    """
     import datetime, os
     log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
 
@@ -95,53 +101,65 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
 
     from config import ANTHROPIC_API_URL
-    is_anthropic = (api_url == ANTHROPIC_API_URL)
-    headers = {
-        "x-api-key": api_key,
-        "Content-Type": "application/json",
-    }
-    if is_anthropic:
-        headers["anthropic-version"] = "2023-06-01"
 
-    body = {
-        "model": model,
-        "system": system_prompt,
-        "messages": [
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.7,
-        "max_tokens": 16384,
-    }
-    if not is_anthropic:
-        body["thinking"] = {"type": "disabled"}
+    # Doubao and other OpenAI-compatible endpoints use /chat/completions
+    is_openai_compat = '/chat/completions' in api_url
+    is_anthropic = (api_url == ANTHROPIC_API_URL)
 
     try:
-        resp = requests.post(
-            api_url,
-            headers=headers,
-            json=body,
-            timeout=120,
-        )
-        log(f"HTTP {resp.status_code}")
-        resp.raise_for_status()
-        data = resp.json()
+        if is_openai_compat:
+            # OpenAI-compatible format (Doubao, etc.)
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            body = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.7,
+                "max_tokens": 8192,
+            }
+            resp = requests.post(api_url, headers=headers, json=body, timeout=300)
+            log(f"HTTP {resp.status_code}")
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            log(f"Content length: {len(content)}, finish_reason: {data['choices'][0].get('finish_reason')}")
+        else:
+            # Anthropic-compatible format (Anthropic native + DeepSeek)
+            headers = {
+                "x-api-key": api_key,
+                "Content-Type": "application/json",
+            }
+            if is_anthropic:
+                headers["anthropic-version"] = "2023-06-01"
+            body = {
+                "model": model,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_prompt}],
+                "temperature": 0.7,
+                "max_tokens": 16384,
+                "thinking": {"type": "disabled"},
+            }
+            resp = requests.post(api_url, headers=headers, json=body, timeout=120)
+            log(f"HTTP {resp.status_code}")
+            resp.raise_for_status()
+            data = resp.json()
 
-        blocks = data.get("content", [])
-        log(f"Response blocks: {len(blocks)}, types: {[b.get('type') for b in blocks]}")
+            blocks = data.get("content", [])
+            log(f"Response blocks: {len(blocks)}, types: {[b.get('type') for b in blocks]}")
+            content = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
 
-        content = ""
-        for block in blocks:
-            if block.get("type") == "text":
-                content += block.get("text", "")
+            if not content:
+                log(f"EMPTY CONTENT! Raw data keys: {list(data.keys())}, blocks: {blocks}")
+                raise ValueError(f"API 返回了空内容。状态码: {resp.status_code}, stop_reason: {data.get('stop_reason')}")
 
-        if not content:
-            log(f"EMPTY CONTENT! Raw data keys: {list(data.keys())}, blocks: {blocks}")
-            raise ValueError(f"API 返回了空内容。状态码: {resp.status_code}, stop_reason: {data.get('stop_reason')}")
+            log(f"Content length: {len(content)}, stop_reason: {data.get('stop_reason')}, preview: {content[:300]}")
 
-        stop_reason = data.get('stop_reason', '')
-        log(f"Content length: {len(content)}, stop_reason: {stop_reason}, preview: {content[:300]}")
-
-        # Extract JSON from the response
+        # Extract JSON from the response (strip markdown code fences if present)
         json_match = re.search(r'```(?:json)?\s*\n(.*?)```', content, re.DOTALL)
         if json_match:
             content = json_match.group(1).strip()
@@ -177,11 +195,17 @@ def _fix_backslashes(text):
     """Double lone backslashes that are not already part of valid JSON escapes."""
     PH_BS = ''
     PH_QT = ''
+    PH_NL = ''
+    PH_TB = ''
     fixed = text.replace('\\\\', PH_BS)
     fixed = fixed.replace('\\"', PH_QT)
+    fixed = fixed.replace('\\n', PH_NL)
+    fixed = fixed.replace('\\t', PH_TB)
     fixed = fixed.replace('\\', '\\\\')
     fixed = fixed.replace(PH_BS, '\\\\')
     fixed = fixed.replace(PH_QT, '\\"')
+    fixed = fixed.replace(PH_NL, '\\n')
+    fixed = fixed.replace(PH_TB, '\\t')
     return fixed
 
 

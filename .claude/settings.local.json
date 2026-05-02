@@ -27,7 +27,11 @@
       "Bash(python -X utf8 -c ' *)",
       "Bash(python -m py_compile models/analysis.py)",
       "Bash(python -m py_compile routes/analysis.py)",
-      "Bash(python -m py_compile database/__init__.py)"
+      "Bash(python -m py_compile database/__init__.py)",
+      "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT, _REFINE_SINGLE_Q_PROMPT; print\\('OK'\\); print\\('---SINGLE---'\\); print\\(_SINGLE_Q_PROMPT[:120]\\); print\\('---REFINE---'\\); print\\(_REFINE_SINGLE_Q_PROMPT[:120]\\)\")",
+      "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT, _REFINE_SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\), len\\(_REFINE_SINGLE_Q_PROMPT\\)\\)\")",
+      "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\)\\)\")",
+      "Bash(python)"
     ]
   }
 }

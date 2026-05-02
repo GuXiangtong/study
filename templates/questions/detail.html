@@ -5,8 +5,8 @@
 <div class="page-header">
     <h1>{{ question.subject_name }} · {{ question.exam_name }} · 第 {{ question.question_number }} 题</h1>
     <div class="header-actions">
-        <form method="POST" action="{{ url_for('analysis.run_analysis', question_id=question.id) }}" style="display:inline">
-            <button type="submit" class="btn btn-primary" onclick="this.form.submit(); this.disabled=true; this.textContent='分析中...'">🔍 分析错因</button>
+        <form method="POST" action="{{ url_for('analysis.run_analysis', question_id=question.id) }}" style="display:inline" id="analysis-form">
+            <button type="submit" class="btn btn-primary" id="analysis-btn">🔍 分析错因</button>
         </form>
         <a href="{{ url_for('questions.edit', question_id=question.id) }}" class="btn btn-secondary">编辑</a>
         <form method="POST" action="{{ url_for('questions.delete', question_id=question.id) }}" style="display:inline" onsubmit="return confirm('确定删除此题及其所有子问题和分析记录？')">
@@ -213,5 +213,22 @@ function toggleEditForm(id) {
     var form = document.getElementById('edit-form-' + id);
     form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }
+
+(function () {
+    var form = document.getElementById('analysis-form');
+    var btn = document.getElementById('analysis-btn');
+    if (form && btn) {
+        form.addEventListener('submit', function () {
+            btn.disabled = true;
+            btn.textContent = '分析中...';
+        });
+    }
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted && btn) {
+            btn.disabled = false;
+            btn.textContent = '🔍 分析错因';
+        }
+    });
+}());
 </script>
 {% endblock %}

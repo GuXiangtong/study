@@ -94,11 +94,13 @@ def _get_recognition_method_name(user_id=None):
 def _sanitize_llm_json(text):
     """Fix LaTeX backslashes in LLM JSON output so they survive json.loads().
 
-    Doubles every backslash that is not part of a valid JSON escape sequence
-    (\\\", \\\\, \\/, \\b, \\f, \\n, \\r, \\t, \\uXXXX).
+    Doubles every backslash except \\\" and \\\\ (JSON structural escapes).
+    Intentionally does NOT preserve \\f, \\r, \\b, \\t, \\n as JSON escapes,
+    because LLM output is LaTeX-heavy and \\f means \\frac, \\r means \\right,
+    etc. — not form-feed or carriage-return control characters.
     """
     text = re.sub(
-        r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})',
+        r'\\(?!["\\])',
         r'\\\\', text
     )
     return text

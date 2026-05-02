@@ -88,14 +88,21 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
 
     def log(msg):
-        with open(log_path, 'a') as f:
+        with open(log_path, 'a', encoding='utf-8') as f:
             f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
 
     log(f"Calling {api_url} model={model}")
     log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
 
-    # Build request body — skip thinking for DeepSeek (consumes output tokens),
-    # but don't send it for Anthropic API (not needed, off by default).
+    from config import ANTHROPIC_API_URL
+    is_anthropic = (api_url == ANTHROPIC_API_URL)
+    headers = {
+        "x-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+    if is_anthropic:
+        headers["anthropic-version"] = "2023-06-01"
+
     body = {
         "model": model,
         "system": system_prompt,
@@ -103,18 +110,15 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0.7,
-        "max_tokens": 8192,
+        "max_tokens": 16384,
     }
-    if "api.anthropic.com" not in api_url:
+    if not is_anthropic:
         body["thinking"] = {"type": "disabled"}
 
     try:
         resp = requests.post(
             api_url,
-            headers={
-                "x-api-key": api_key,
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json=body,
             timeout=120,
         )
@@ -134,13 +138,22 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
             log(f"EMPTY CONTENT! Raw data keys: {list(data.keys())}, blocks: {blocks}")
             raise ValueError(f"API 返回了空内容。状态码: {resp.status_code}, stop_reason: {data.get('stop_reason')}")
 
-        log(f"Content length: {len(content)}, preview: {content[:300]}")
+        stop_reason = data.get('stop_reason', '')
+        log(f"Content length: {len(content)}, stop_reason: {stop_reason}, preview: {content[:300]}")
 
         # Extract JSON from the response
-        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', content, re.DOTALL)
+        json_match = re.search(r'```(?:json)?\s*\n(.*?)```', content, re.DOTALL)
         if json_match:
-            content = json_match.group(1)
+            content = json_match.group(1).strip()
             log(f"Extracted from markdown, new length: {len(content)}")
+        elif content.lstrip().startswith('```'):
+            lines = content.strip().split('\n')
+            if lines[0].strip().startswith('```'):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]
+            content = '\n'.join(lines).strip()
+            log(f"Stripped markdown fences, new length: {len(content)}")
 
         result = _safe_json_parse(content)
         log(f"JSON parsed OK, top keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
@@ -151,22 +164,75 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
         raise
 
 
+# --- JSON repair helpers ---
+# Regex matching ASCII " used as Chinese quotation marks inside JSON string values.
+_INNER_QUOTE_RE = re.compile(
+    r'(?<=[一-鿿　-〿＀-￯\w)）\]】])'
+    r'"'
+    r'(?=[一-鿿　-〿＀-￯\w(（\[【])'
+)
+
+
+def _fix_backslashes(text):
+    """Double lone backslashes that are not already part of valid JSON escapes."""
+    PH_BS = ''
+    PH_QT = ''
+    fixed = text.replace('\\\\', PH_BS)
+    fixed = fixed.replace('\\"', PH_QT)
+    fixed = fixed.replace('\\', '\\\\')
+    fixed = fixed.replace(PH_BS, '\\\\')
+    fixed = fixed.replace(PH_QT, '\\"')
+    return fixed
+
+
+def _fix_inner_quotes(text):
+    """Escape ASCII double-quotes used as Chinese quotation marks inside JSON strings."""
+    return _INNER_QUOTE_RE.sub('\\"', text)
+
+
 def _safe_json_parse(text):
-    """Parse JSON, fixing LaTeX backslash escapes that break the parser."""
+    """Parse JSON, applying incremental fixes for common LLM output issues."""
+    # 1. Try as-is
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # Fix ALL backslash sequences that aren't valid JSON escapes.
-    # Valid JSON escapes: \" \\ \/ \b \f \n \r \t \uXXXX
-    # Everything else (LaTeX commands like \frac, \(, \), \sin, etc.)
-    # needs its backslash doubled to become a literal backslash in JSON.
-    text = re.sub(
-        r'\\(?!["\\/bfnrtu]|u[0-9a-fA-F]{4})',
-        r'\\\\', text
-    )
-    return json.loads(text)
+    # 2. Fix inner quotes only
+    try:
+        return json.loads(_fix_inner_quotes(text))
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Fix backslashes only
+    try:
+        return json.loads(_fix_backslashes(text))
+    except json.JSONDecodeError:
+        pass
+
+    # 4. Fix both: backslashes first, then inner quotes
+    fixed = _fix_inner_quotes(_fix_backslashes(text))
+    try:
+        return json.loads(fixed)
+    except json.JSONDecodeError as e:
+        import datetime
+        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+        pos = e.pos or 0
+        snippet = fixed[max(0, pos - 50):pos + 50]
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now().isoformat()}] JSON PARSE FAIL at pos {pos}: ...{repr(snippet)}...\n")
+        raise
+
+
+def _fix_literal_newlines(obj):
+    """Replace literal '\\n' (two chars) with real newlines in all string values."""
+    if isinstance(obj, str):
+        return obj.replace('\\n', '\n')
+    if isinstance(obj, dict):
+        return {k: _fix_literal_newlines(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fix_literal_newlines(item) for item in obj]
+    return obj
 
 
 def _parse_llm_response(llm_data):
@@ -231,7 +297,8 @@ def _parse_llm_response(llm_data):
             lv['answer'] = exercises[i].get('answer', '')
             lv['solution_steps'] = exercises[i].get('solution_steps', '')
 
-    return step1, step2, step3, step4
+    return (_fix_literal_newlines(step1), _fix_literal_newlines(step2),
+            _fix_literal_newlines(step3), _fix_literal_newlines(step4))
 
 
 class AnalysisService:
@@ -257,7 +324,7 @@ class AnalysisService:
         sub_questions = [dict(sq) for sq in get_sub_questions_by_question(question_id)]
 
         llm_error = None
-        if self.mode in ('llm', 'deepseek', 'doubao_seed'):
+        if self.mode in ('llm', 'deepseek', 'doubao_seed', 'anthropic'):
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
@@ -266,7 +333,7 @@ class AnalysisService:
                 llm_error = f"{type(e).__name__}: {e}"
                 # Write debug log to file since Flask reloader eats stdout
                 log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
-                with open(log_path, 'a') as f:
+                with open(log_path, 'a', encoding='utf-8') as f:
                     f.write(f"[{datetime.datetime.now().isoformat()}] LLM ERROR: {llm_error}\n{tb}\n")
                 step1 = self._step1_template(question, sub_questions)
                 step2 = self._step2_template(question, sub_questions, step1)
@@ -287,7 +354,7 @@ class AnalysisService:
         log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
 
         def log(msg):
-            with open(log_path, 'a') as f:
+            with open(log_path, 'a', encoding='utf-8') as f:
                 f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
 
         log("_run_llm_analysis START")
@@ -320,6 +387,9 @@ class AnalysisService:
         log("Calling _call_llm...")
         llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
         log(f"_call_llm returned, keys: {list(llm_data.keys())}")
+
+        self._last_system_prompt = system_prompt
+        self._last_user_prompt = user_prompt
 
         result = _parse_llm_response(llm_data)
         log("_parse_llm_response OK")
@@ -359,6 +429,8 @@ class AnalysisService:
             step4_data=json.dumps(step4, ensure_ascii=False),
             model=model_label,
             user_id=self.user_id,
+            system_prompt=getattr(self, '_last_system_prompt', ''),
+            user_prompt=getattr(self, '_last_user_prompt', ''),
         )
         return {'id': analysis_id}
 

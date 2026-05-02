@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}查看提示词 - 分析 #{{ analysis.id }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>分析 #{{ analysis.id }} 发送的提示词</h1>
+    <p style="color:#666; margin-bottom:16px">
+        分析时间：{{ analysis.created_at|localtime }} | 模型：{{ analysis.model or '—' }}
+    </p>
+
+    <h2>System Prompt</h2>
+    <pre class="prompt-block">{{ analysis.system_prompt or '（未记录）' }}</pre>
+
+    <h2 style="margin-top:24px">User Prompt</h2>
+    <pre class="prompt-block">{{ analysis.user_prompt or '（未记录）' }}</pre>
+
+    <div style="margin-top:24px">
+        <a href="{{ url_for('analysis.view_analysis', analysis_id=analysis.id) }}" class="btn">返回分析报告</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.prompt-block {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 16px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 13px;
+    line-height: 1.6;
+    max-height: 500px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}

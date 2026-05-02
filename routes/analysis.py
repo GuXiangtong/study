@@ -85,3 +85,14 @@ def view_analysis(analysis_id):
                            step2=safe_json(analysis['step2_data']),
                            step3=safe_json(analysis['step3_data']),
                            step4=safe_json(analysis['step4_data']))
+
+
+@analysis_bp.route('/analysis/<int:analysis_id>/prompts')
+@login_required
+def view_prompts(analysis_id):
+    user_id = session['user_id']
+    analysis = get_analysis(analysis_id, user_id=user_id)
+    if not analysis:
+        flash('分析记录不存在或无权访问', 'error')
+        return redirect(url_for('questions.list_questions'))
+    return render_template('analysis/prompts.html', analysis=analysis)

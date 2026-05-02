@@ -150,6 +150,7 @@
                     <td>{{ a.model or '—' }}</td>
                     <td>
                         <a href="{{ url_for('analysis.view_analysis', analysis_id=a.id) }}" class="btn btn-small">查看报告</a>
+                        <a href="{{ url_for('analysis.view_prompts', analysis_id=a.id) }}" class="btn btn-small">查看提示词</a>
                         <form method="POST" action="{{ url_for('analysis.delete_analysis_route', analysis_id=a.id) }}" style="display:inline" onsubmit="return confirm('确定删除这条分析记录吗？关联的报告文件也将被删除。')">
                             <button type="submit" class="btn btn-small btn-danger">删除</button>
                         </form>

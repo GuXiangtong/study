@@ -3,12 +3,14 @@ from database import get_db
 
 def create_analysis(sub_question_id=None, question_id=None, file_path=None,
                     step1_data=None, step2_data=None, step3_data=None, step4_data=None,
-                    model='', user_id=None):
+                    model='', user_id=None, system_prompt='', user_prompt=''):
     db = get_db()
     db.execute(
         "INSERT INTO analysis_results (sub_question_id, question_id, file_path, "
-        "step1_data, step2_data, step3_data, step4_data, model, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (sub_question_id, question_id, file_path, step1_data, step2_data, step3_data, step4_data, model, user_id)
+        "step1_data, step2_data, step3_data, step4_data, model, user_id, system_prompt, user_prompt) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (sub_question_id, question_id, file_path, step1_data, step2_data, step3_data, step4_data,
+         model, user_id, system_prompt, user_prompt)
     )
     db.commit()
     return db.execute("SELECT last_insert_rowid()").fetchone()[0]

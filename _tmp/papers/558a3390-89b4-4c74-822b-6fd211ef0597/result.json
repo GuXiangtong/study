@@ -1,0 +1,15 @@
+{
+  "task_id": "558a3390-89b4-4c74-822b-6fd211ef0597",
+  "original_filename": "5.jpg",
+  "page_count": 1,
+  "question_count": 0,
+  "questions": [],
+  "errors": [
+    "第1页 Doubao Seed 识别失败：No module named 'volcenginesdkarkruntime'"
+  ],
+  "page_image_names": [
+    "page_001.jpg"
+  ],
+  "subject_id": 2,
+  "exam_id": 25
+}

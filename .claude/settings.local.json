@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python app.py)",
+      "Bash(curl -s http://localhost:5001/ -o /dev/null -w \"%{http_code}\")",
+      "Bash(pip install *)",
+      "Bash(pkill -f \"python app.py\")",
+      "Bash(curl -s http://localhost:5001/questions/123 -c /tmp/cookie.txt -b /tmp/cookie.txt -L)",
+      "Bash(python -c ' *)",
+      "Bash(python -)",
+      "Bash(python _fix_stems.py)",
+      "Bash(python -m py_compile services/analysis_service.py)",
+      "Bash(python -m py_compile config.py)",
+      "Bash(python -c \"from config import ANTHROPIC_API_URL; print\\(ANTHROPIC_API_URL\\)\")",
+      "Bash(curl -s http://localhost:6655/ -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:6655/v1/messages -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:6655/api/v1/messages -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:6655/anthropic/v1/messages -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:6655/v1/chat/completions -w \"\\\\n%{http_code}\")",
+      "Bash(curl -s http://localhost:6655/anthropic/v1/messages -H \"x-api-key: 803d167f-f548-45fa-a219-a9f6fa5ac8bf\" -H \"anthropic-version: 2023-06-01\" -H \"Content-Type: application/json\" -d '{\"model\":\"claude-opus-4-5\",\"max_tokens\":10,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}' -w \"\\\\n%{http_code}\")",
+      "Bash(taskkill //F //FI \"WINDOWTITLE eq *flask*\")",
+      "Bash(taskkill //F //FI \"IMAGENAME eq python.exe\" //FI \"WINDOWTITLE eq *tong*\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5001/)",
+      "Bash(python -m py_compile _tmp/json_helpers.py)",
+      "Bash(python -X utf8)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(python -X utf8 -c ' *)",
+      "Bash(python -m py_compile models/analysis.py)",
+      "Bash(python -m py_compile routes/analysis.py)",
+      "Bash(python -m py_compile database/__init__.py)"
+    ]
+  }
+}

@@ -31,10 +31,11 @@ DOUBAO_API_KEY = _apikeys.get('DOUBAO_API_KEY', os.environ.get('DOUBAO_API_KEY',
 DEEPSEEK_API_URL = 'https://api.deepseek.com/anthropic/v1/messages'
 DEEPSEEK_MODEL = 'deepseek-v4-pro'
 
-# Anthropic (Claude)
+# Anthropic (Claude) — supports proxy via ANTHROPIC_BASE_URL
 ANTHROPIC_API_KEY = _apikeys.get('ANTHROPIC_API_KEY', os.environ.get('ANTHROPIC_API_KEY', ''))
-ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
-ANTHROPIC_MODEL = 'claude-sonnet-4-20250514'
+_anthropic_base = _apikeys.get('ANTHROPIC_BASE_URL', os.environ.get('ANTHROPIC_BASE_URL', '')).rstrip('/')
+ANTHROPIC_API_URL = f'{_anthropic_base}/v1/messages' if _anthropic_base else 'https://api.anthropic.com/v1/messages'
+ANTHROPIC_MODEL = 'claude-opus-4-6'
 
 # Doubao Seed (ByteDance Ark)
 DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'

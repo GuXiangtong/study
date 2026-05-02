@@ -69,6 +69,12 @@ def _run_migrations(db):
     if not _column_exists(db, 'analysis_results', 'model'):
         db.execute("ALTER TABLE analysis_results ADD COLUMN model TEXT NOT NULL DEFAULT ''")
 
+    if not _column_exists(db, 'analysis_results', 'system_prompt'):
+        db.execute("ALTER TABLE analysis_results ADD COLUMN system_prompt TEXT DEFAULT ''")
+
+    if not _column_exists(db, 'analysis_results', 'user_prompt'):
+        db.execute("ALTER TABLE analysis_results ADD COLUMN user_prompt TEXT DEFAULT ''")
+
     # Rebuild settings table with (user_id, key) PK
     if not _column_exists(db, 'settings', 'user_id'):
         db.executescript('''

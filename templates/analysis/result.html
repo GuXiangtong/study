@@ -13,114 +13,236 @@
     </div>
 </div>
 
-{% if step1 %}
-<div class="card">
-    <h2>{{ step1.title }}</h2>
-    <div class="analysis-section">
-        <div class="field-item">
-            <strong>题目简述：</strong>
-            <p>{{ step1.question_summary }}</p>
-        </div>
-        <div class="field-item">
-            <strong>学生自述错误原因：</strong>
-            <p>{{ step1.student_error_reason }}</p>
-        </div>
-        <div class="field-item">
-            <strong>AI 分析：</strong>
-            <div class="analysis-text">{{ step1.ai_analysis }}</div>
-        </div>
-        <div class="field-item">
-            <strong>关联知识点：</strong>
-            <p>{{ step1.knowledge_points }}</p>
-        </div>
-        <div class="field-item">
-            <strong>所属考纲板块：</strong>
-            <p>{{ step1.syllabus_section }}</p>
-        </div>
-    </div>
-</div>
-{% endif %}
+<div class="analysis-layout">
+    <div class="analysis-main">
 
-{% if step2 %}
-<div class="card">
-    <h2>{{ step2.title }}</h2>
-    <div class="analysis-section">
-        <div class="analysis-text">{{ step2.weakness_analysis }}</div>
-    </div>
-</div>
-{% endif %}
-
-{% if step3 %}
-<div class="card">
-    <h2>{{ step3.title }}</h2>
-    {% if step3.note %}
-    <p class="warning-note">{{ step3.note }}</p>
-    {% endif %}
-    <div class="steps-list">
-        {% for s in step3.steps %}
-        <div class="step-item">
-            <h3>{{ loop.index }}. {{ s.name }}</h3>
-            <div class="analysis-text">{{ s.guidance }}</div>
+        {% if step1 %}
+        <div class="card">
+            <h2>{{ step1.title }}</h2>
+            <div class="analysis-section">
+                <div class="field-item">
+                    <strong>题目简述：</strong>
+                    <p>{{ step1.question_summary }}</p>
+                </div>
+                <div class="field-item">
+                    <strong>学生自述错误原因：</strong>
+                    <p>{{ step1.student_error_reason }}</p>
+                </div>
+                <div class="field-item">
+                    <strong>AI 分析：</strong>
+                    <div class="analysis-text">{{ step1.ai_analysis }}</div>
+                </div>
+                <div class="field-item">
+                    <strong>关联知识点：</strong>
+                    <p>{{ step1.knowledge_points }}</p>
+                </div>
+                <div class="field-item">
+                    <strong>所属考纲板块：</strong>
+                    <p>{{ step1.syllabus_section }}</p>
+                </div>
+            </div>
         </div>
-        {% endfor %}
-    </div>
-    {% if step3.correct_answer %}
-    <h3 style="margin-top:16px;">正确答案</h3>
-    <div class="analysis-text">{{ step3.correct_answer }}</div>
-    {% endif %}
-    {% if step3.solution_steps %}
-    <h3 style="margin-top:16px;">解题步骤</h3>
-    <div class="analysis-text">{{ step3.solution_steps }}</div>
-    {% endif %}
-</div>
-{% endif %}
+        {% endif %}
 
-{% if step4 %}
-<div class="card">
-    <h2>{{ step4.title }}</h2>
-    <p>{{ step4.description }}</p>
+        {% if step2 %}
+        <div class="card">
+            <h2>{{ step2.title }}</h2>
+            <div class="analysis-section">
+                <div class="analysis-text">{{ step2.weakness_analysis }}</div>
+            </div>
+        </div>
+        {% endif %}
 
-    {% if step4.exercises and step4.exercises|length > 0 %}
-        {% for ex in step4.exercises %}
-        <div class="practice-question">
-            <h3>
-                {% if ex.difficulty == '基础题' %}🟢 基础题
-                {% elif ex.difficulty == '提高题' %}🟡 提高题
-                {% elif ex.difficulty == '难题' %}🔴 难题
-                {% else %}📌 {{ ex.difficulty }}{% endif %}
-            </h3>
-            <div class="practice-content">{{ ex.content }}</div>
-            {% if ex.solution_steps %}
-            <details class="solution-details">
-                <summary>💡 解题思路</summary>
-                <div class="practice-hint">{{ ex.solution_steps }}</div>
-            </details>
+        {% if step3 %}
+        <div class="card">
+            <h2>{{ step3.title }}</h2>
+            {% if step3.note %}
+            <p class="warning-note">{{ step3.note }}</p>
             {% endif %}
-            {% if ex.answer %}
-            <details class="answer-details">
-                <summary>✅ 参考答案</summary>
-                <div class="practice-answer">{{ ex.answer }}</div>
-            </details>
+            <div class="steps-list">
+                {% for s in step3.steps %}
+                <div class="step-item">
+                    <h3>{{ loop.index }}. {{ s.name }}</h3>
+                    <div class="analysis-text">{{ s.guidance }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if step3.correct_answer %}
+            <h3 style="margin-top:16px;">正确答案</h3>
+            <div class="analysis-text">{{ step3.correct_answer }}</div>
+            {% endif %}
+            {% if step3.solution_steps %}
+            <h3 style="margin-top:16px;">解题步骤</h3>
+            <div class="analysis-text">{{ step3.solution_steps }}</div>
             {% endif %}
         </div>
-        {% endfor %}
-    {% elif step4.levels %}
-    <ul>
-        {% for lv in step4.levels %}
-        <li><strong>{{ lv.difficulty }}</strong>：{{ lv.target }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-</div>
-{% endif %}
+        {% endif %}
 
-<div class="form-actions">
-    <a href="javascript:history.back()" class="btn btn-secondary">返回</a>
+        {% if step4 %}
+        <div class="card">
+            <h2>{{ step4.title }}</h2>
+            <p>{{ step4.description }}</p>
+
+            {% if step4.exercises and step4.exercises|length > 0 %}
+                {% for ex in step4.exercises %}
+                <div class="practice-question">
+                    <h3>
+                        {% if ex.difficulty == '基础题' %}🟢 基础题
+                        {% elif ex.difficulty == '提高题' %}🟡 提高题
+                        {% elif ex.difficulty == '难题' %}🔴 难题
+                        {% else %}📌 {{ ex.difficulty }}{% endif %}
+                    </h3>
+                    <div class="practice-content">{{ ex.content }}</div>
+                    {% if ex.solution_steps %}
+                    <details class="solution-details">
+                        <summary>💡 解题思路</summary>
+                        <div class="practice-hint">{{ ex.solution_steps }}</div>
+                    </details>
+                    {% endif %}
+                    {% if ex.answer %}
+                    <details class="answer-details">
+                        <summary>✅ 参考答案</summary>
+                        <div class="practice-answer">{{ ex.answer }}</div>
+                    </details>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% elif step4.levels %}
+            <ul>
+                {% for lv in step4.levels %}
+                <li><strong>{{ lv.difficulty }}</strong>：{{ lv.target }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <a href="javascript:history.back()" class="btn btn-secondary">返回</a>
+        </div>
+    </div>
+
+    <div class="analysis-chat">
+        <div class="chat-panel">
+            <div class="chat-panel-header">
+                <span>追问 AI</span>
+                <span class="chat-model-badge">{{ chat_model }}</span>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                {% if not chats %}
+                <div class="chat-empty" id="chatEmpty">
+                    <p>可以针对以上分析内容提问，例如：</p>
+                    <ul>
+                        <li>这个知识点的公式怎么推导？</li>
+                        <li>第三步的切入点我还是不理解</li>
+                        <li>帮我再出一道类似的题</li>
+                    </ul>
+                </div>
+                {% else %}
+                {% for msg in chats %}
+                <div class="chat-msg chat-msg-{{ msg.role }}">
+                    <div class="chat-msg-content">{{ msg.content }}</div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            <div class="chat-input-area">
+                <textarea id="chatInput" placeholder="输入追问内容…（Enter 发送，Shift+Enter 换行）" rows="2"></textarea>
+                <button id="chatSend" class="btn btn-primary btn-small" onclick="sendChatMessage()">发送</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const ANALYSIS_ID = {{ analysis.id }};
+
+window.addEventListener('DOMContentLoaded', () => {
+    const msgs = document.getElementById('chatMessages');
+    msgs.scrollTop = msgs.scrollHeight;
+});
+
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSend');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+
+    appendMessage('user', message);
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+    sendBtn.textContent = '…';
+
+    const loadingId = 'loading-' + Date.now();
+    appendLoading(loadingId);
+
+    try {
+        const resp = await fetch(`/analysis/${ANALYSIS_ID}/chat`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({message})
+        });
+        removeLoading(loadingId);
+        const data = await resp.json();
+        if (!resp.ok) {
+            appendMessage('error', data.error || '请求失败');
+        } else {
+            appendMessage('assistant', data.reply);
+            await MathJax.typesetPromise([document.getElementById('chatMessages')]);
+        }
+    } catch (e) {
+        removeLoading(loadingId);
+        appendMessage('error', '网络错误，请重试');
+    } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        sendBtn.textContent = '发送';
+        input.focus();
+    }
+}
+
+function appendMessage(role, content) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `chat-msg chat-msg-${role}`;
+    const inner = document.createElement('div');
+    inner.className = 'chat-msg-content';
+    inner.textContent = content;
+    div.appendChild(inner);
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendLoading(id) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'chat-msg chat-msg-assistant';
+    div.innerHTML = '<div class="chat-loading"><span></span><span></span><span></span></div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeLoading(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('chatInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage();
+        }
+    });
+});
+
 MathJax.typesetPromise();
 </script>
 {% endblock %}

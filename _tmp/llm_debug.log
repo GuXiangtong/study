@@ -217,3 +217,387 @@ requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='ark.cn-beijing.volces
 [2026-05-02T16:31:54.658089] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
 [2026-05-02T16:31:54.658887] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
 [2026-05-02T16:31:54.659727] _parse_llm_response OK
+[2026-05-03T11:09:22.332014] _run_llm_analysis START
+[2026-05-03T11:09:22.333306] Built user prompt, length: 874
+[2026-05-03T11:09:22.334962] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-03T11:09:22.336659] System prompt length: 1738, from_custom: True
+[2026-05-03T11:09:22.338342] Calling _call_llm...
+[2026-05-03T11:09:22.339752] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-03T11:09:22.340826] System prompt length: 1738, User prompt length: 874
+[2026-05-03T11:10:37.598342] HTTP 200
+[2026-05-03T11:10:37.599589] Response blocks: 1, types: ['text']
+[2026-05-03T11:10:37.600558] Content length: 8574, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "导数的概念与应用、三角函数的导数、零点存在定理（介值定理）、三角函数的性质与参数范围",
+    "syllabus_section": "函数与导数、三角函数",
+    "ai_analysis": "1) 题目考察：本题是一道创新定义题，定义了「T类数」和「T类集」的概念。核心考察：(1)理解新定义并代入具体函数验证；(2)利用连续函数的介值定理（零点存在定理）证明集合非空；(3)对含参三角函数求导后，分析使得T类集为全体实数R的参数条件，最终求参数最大值。2) 学生错误根源可能包括：对新定义
+[2026-05-03T11:10:37.601520] Extracted from markdown, new length: 8562
+[2026-05-03T11:10:37.602386] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T11:10:37.603151] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T11:10:37.603857] _parse_llm_response OK
+[2026-05-03T11:59:49.113747] _run_llm_analysis START
+[2026-05-03T11:59:49.114946] Built user prompt, length: 914
+[2026-05-03T11:59:49.116130] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-03T11:59:49.117784] System prompt length: 1738, from_custom: True
+[2026-05-03T11:59:49.119112] Calling _call_llm...
+[2026-05-03T11:59:49.120915] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-03T11:59:49.121908] System prompt length: 1738, User prompt length: 914
+[2026-05-03T12:01:29.790093] HTTP 200
+[2026-05-03T12:01:29.791217] Response blocks: 1, types: ['text']
+[2026-05-03T12:01:29.791792] Content length: 11960, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "导数的概念与性质、复合条件的逻辑判断、三角函数的导数、零点存在定理（介值定理）",
+    "syllabus_section": "导数及其应用、三角函数、函数与方程",
+    "ai_analysis": "1) 题目考察：本题是一道新定义题，考察学生对新概念「T类数」的理解和应用能力。第(1)问考察具体验证；第(2)问考察利用连续函数性质（介值定理/零点存在定理）进行证明；第(3)问考察三角函数导数的综合应用。\n2) 学生错误根源：学生在第(2)问中将条件 $f'(x_0) \\cdot 
+[2026-05-03T12:01:29.792553] Extracted from markdown, new length: 11948
+[2026-05-03T12:01:29.793351] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:01:29.794075] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:01:29.794616] _parse_llm_response OK
+[2026-05-03T12:06:53.773053] _run_llm_analysis START
+[2026-05-03T12:06:53.774356] Built user prompt, length: 914
+[2026-05-03T12:06:53.776103] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-03T12:06:53.777758] System prompt length: 1776, from_custom: True
+[2026-05-03T12:06:53.779393] Calling _call_llm...
+[2026-05-03T12:06:53.781952] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-03T12:06:53.783461] System prompt length: 1776, User prompt length: 914
+[2026-05-03T12:08:11.960965] HTTP 200
+[2026-05-03T12:08:11.961863] Response blocks: 1, types: ['text']
+[2026-05-03T12:08:11.963243] Content length: 8633, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "导数的概念与性质、复合函数求导、新定义问题的理解与应用",
+    "syllabus_section": "函数与导数（导数的概念、三角函数的导数、新定义理解型综合题）",
+    "ai_analysis": "1) 题目考察：本题是一道新定义题，定义了「T类数」的概念。核心在于准确理解定义：点$(x_0, y_0)$在导函数$y=f'(x)$图像上，意味着$y_0 = f'(x_0)$，然后条件是$f'(x_0) \\cdot f'(y_0) \\geq 0$，即$f'(x_0) \\cdot
+[2026-05-03T12:08:11.963861] Extracted from markdown, new length: 8621
+[2026-05-03T12:08:11.964364] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:08:11.965026] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:08:11.965492] _parse_llm_response OK
+[2026-05-03T12:12:23.845914] _run_llm_analysis START
+[2026-05-03T12:12:23.847354] Built user prompt, length: 916
+[2026-05-03T12:12:23.848441] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-03T12:12:23.849726] System prompt length: 1776, from_custom: True
+[2026-05-03T12:12:23.851150] Calling _call_llm...
+[2026-05-03T12:12:23.852488] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-03T12:12:23.853105] System prompt length: 1776, User prompt length: 916
+[2026-05-03T12:13:34.584623] HTTP 200
+[2026-05-03T12:13:34.585542] Response blocks: 1, types: ['text']
+[2026-05-03T12:13:34.586155] Content length: 8411, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "导函数的概念、新定义问题的理解与应用、三角函数的导数、零点存在定理（介值定理）、三角函数的性质与参数范围",
+    "syllabus_section": "函数与导数、三角函数",
+    "ai_analysis": "1) 题目考察：这是一道新定义题，要求学生理解「T类数」的定义——即点 $(x_0, y_0)$ 在 $y=f'(x)$ 图像上意味着 $y_0 = f'(x_0)$，然后条件 $f'(x_0) \\cdot f'(y_0) \\geq 0$ 表示 $f'(x_0)$ 与 $f
+[2026-05-03T12:13:34.586888] Extracted from markdown, new length: 8399
+[2026-05-03T12:13:34.587498] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:13:34.588259] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T12:13:34.588739] _parse_llm_response OK
+[2026-05-03T12:15:14.992736] _run_llm_analysis START
+[2026-05-03T12:15:14.993334] Built user prompt, length: 916
+[2026-05-03T12:15:14.993846] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-03T12:15:14.994575] System prompt length: 1776, from_custom: True
+[2026-05-03T12:15:14.995213] Calling _call_llm...
+[2026-05-03T12:15:14.995662] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-03T12:15:14.996016] System prompt length: 1776, User prompt length: 916
+[2026-05-03T12:15:16.408476] EXCEPTION: SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLError(1, '[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)')))
+[2026-05-03T12:15:16.523021] LLM ERROR: SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLError(1, '[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)')))
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+        sock=sock,
+    ...<14 lines>...
+        assert_fingerprint=self.assert_fingerprint,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+        sock=sock,
+    ...<8 lines>...
+        tls_in_tls=tls_in_tls,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python314\Lib\ssl.py", line 1076, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\ssl.py", line 1372, in do_handshake
+    self._sslobj.do_handshake()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+ssl.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLError(1, '[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 353, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 412, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 147, in _call_llm
+    resp = requests.post(api_url, headers=headers, json=body, timeout=120)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\api.py", line 115, in post
+    return request("post", url, data=data, json=json, **kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLError(1, '[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1077)')))
+
+[2026-05-03T12:23:04.232547] _run_llm_analysis START
+[2026-05-03T12:23:04.233202] Built user prompt, length: 916
+[2026-05-03T12:23:04.233782] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-03T12:23:04.234332] System prompt length: 1776, from_custom: True
+[2026-05-03T12:23:04.234820] Calling _call_llm...
+[2026-05-03T12:23:04.235220] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-03T12:23:04.235614] System prompt length: 1776, User prompt length: 916
+[2026-05-03T12:23:05.827293] EXCEPTION: SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)')))
+[2026-05-03T12:23:05.834421] LLM ERROR: SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)')))
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+        sock=sock,
+    ...<14 lines>...
+        assert_fingerprint=self.assert_fingerprint,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+        sock=sock,
+    ...<8 lines>...
+        tls_in_tls=tls_in_tls,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python314\Lib\ssl.py", line 1076, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\ssl.py", line 1372, in do_handshake
+    self._sslobj.do_handshake()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+ssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 355, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 414, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 149, in _call_llm
+    resp = session.post(api_url, headers=headers, json=body, timeout=120)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /anthropic/v1/messages (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1077)')))
+
+[2026-05-03T12:24:51.891355] _run_llm_analysis START
+[2026-05-03T12:24:51.891980] Built user prompt, length: 916
+[2026-05-03T12:24:51.892426] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-03T12:24:51.892900] System prompt length: 1776, from_custom: True
+[2026-05-03T12:24:51.893416] Calling _call_llm...
+[2026-05-03T12:24:51.894229] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-03T12:24:51.894936] System prompt length: 1776, User prompt length: 916
+[2026-05-03T12:24:53.661149] HTTP 403
+[2026-05-03T12:24:53.661889] EXCEPTION: HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+[2026-05-03T12:24:53.676967] LLM ERROR: HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 355, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 414, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 151, in _call_llm
+    resp.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+
+[2026-05-03T13:55:17.562102] _run_llm_analysis START
+[2026-05-03T13:55:17.563127] Built user prompt, length: 916
+[2026-05-03T13:55:17.564102] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-03T13:55:17.565401] System prompt length: 1776, from_custom: True
+[2026-05-03T13:55:17.566886] Calling _call_llm...
+[2026-05-03T13:55:17.568217] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-03T13:55:17.569390] System prompt length: 1776, User prompt length: 916
+[2026-05-03T13:57:26.321602] HTTP 200
+[2026-05-03T13:57:26.323123] Response blocks: 1, types: ['text']
+[2026-05-03T13:57:26.324100] Content length: 6572, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "新定义问题，涉及函数与导数、集合关系、逻辑推理。具体包括：导数的计算、函数符号的判断、集合的子集关系证明、存在性问题的论证。",
+    "syllabus_section": "函数与分析（导数及其应用）",
+    "ai_analysis": "1) 本题考察学生对新定义「T类数」的理解能力，以及运用导数知识进行逻辑推理和证明的能力。第(2)问核心是证明：若T类集S是R的真子集，则导函数f'(x)必存在零点。\\n2) 学生自述错误根源在于将定义中的条件 f'(x0) · f'(y0) ≥ 0
+[2026-05-03T13:57:26.325115] Extracted from markdown, new length: 6560
+[2026-05-03T13:57:26.325805] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T13:57:26.326619] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T13:57:26.327227] _parse_llm_response OK
+[2026-05-03T14:08:57.999937] _run_llm_analysis START
+[2026-05-03T14:08:58.000669] Built user prompt, length: 1540
+[2026-05-03T14:08:58.001184] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-03T14:08:58.001717] System prompt length: 1776, from_custom: True
+[2026-05-03T14:08:58.002648] Calling _call_llm...
+[2026-05-03T14:08:58.003249] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-03T14:08:58.003679] System prompt length: 1776, User prompt length: 1540
+[2026-05-03T14:10:25.885305] HTTP 200
+[2026-05-03T14:10:25.885966] Response blocks: 1, types: ['text']
+[2026-05-03T14:10:25.886528] Content length: 4813, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "文言文实词含义推断、虚词用法辨析、文言断句、文言文翻译原则、人物传记选材比较分析",
+    "syllabus_section": "上海市高考语文考纲·古诗文阅读·文言文阅读",
+    "ai_analysis": "本题是典型的文言文综合阅读题，选取了欧阳修《梅圣俞墓志铭》和《宋史·梅尧臣传》两则材料进行对比阅读。题目考察点覆盖了考纲中「理解常见文言实词在文中的含义」「理解常见文言虚词在文中的用法」「文言断句」「理解并翻译文中的句子」「归纳内容要点，概括中心意思」等多个能力层级。\n\n学生
+[2026-05-03T14:10:25.887114] Extracted from markdown, new length: 4801
+[2026-05-03T14:10:25.887622] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T14:10:25.888383] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T14:10:25.888921] _parse_llm_response OK
+[2026-05-03T14:12:50.757262] _run_llm_analysis START
+[2026-05-03T14:12:50.757949] Built user prompt, length: 1540
+[2026-05-03T14:12:50.758412] Config: api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, key_ok=True
+[2026-05-03T14:12:50.758925] System prompt length: 1776, from_custom: True
+[2026-05-03T14:12:50.759462] Calling _call_llm...
+[2026-05-03T14:12:50.759883] Calling http://localhost:6655/anthropic/v1/messages model=claude-opus-4-6
+[2026-05-03T14:12:50.760350] System prompt length: 1776, User prompt length: 1540
+[2026-05-03T14:14:17.004564] HTTP 200
+[2026-05-03T14:14:17.005464] Response blocks: 1, types: ['text']
+[2026-05-03T14:14:17.006128] Content length: 4615, stop_reason: end_turn, preview: ```json
+{
+  "step1": {
+    "knowledge_points": "文言文阅读综合：实词解释、虚词辨析、句读断句、文言翻译、比较阅读分析",
+    "syllabus_section": "上海高考语文·文言文阅读（古代诗文阅读）",
+    "ai_analysis": "本题为文言文阅读综合题，选材为欧阳修《梅圣俞墓志铭》与《宋史·梅尧臣传》的对比阅读。考察内容涵盖：1）文言实词的语境释义（属、矜）；2）文言实词的辨析选择（戚、袷）；3）虚词的语境运用；4）文言语句翻译（涉及倒装、省略等句式）；5）文言断句能力；6）比较阅读的分析能力。学生在此题上的薄弱点可能
+[2026-05-03T14:14:17.006756] Extracted from markdown, new length: 4603
+[2026-05-03T14:14:17.007394] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T14:14:17.008163] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-03T14:14:17.008761] _parse_llm_response OK
+[2026-05-03T16:43:55.340222] [chat] HTTP 200
+[2026-05-03T16:51:38.503818] [chat] api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, system_len=848, msgs=3
+[2026-05-03T16:51:44.008639] [chat] HTTP 200
+[2026-05-03T16:51:44.009776] [chat] reply_len=168, preview=我理解你对第16题的断句有疑问，但我手边没有这道题的原文内容。
+
+你能不能把第16题需要断句的那段原文贴给我？另外也告诉我：
+
+1. **你当时是怎么断的？**
+2. **标准答案给的断法是什么？**
+[2026-05-03T17:15:45.441605] [chat] api_url=http://localhost:6655/anthropic/v1/messages, model=claude-opus-4-6, system_len=4624, msgs=5
+[2026-05-03T17:15:52.797425] [chat] HTTP 200
+[2026-05-03T17:15:52.798256] [chat] reply_len=297, preview=好的，我重新看一下第16题。
+
+需要断句的原文是：
+
+> 欧阳修与为诗友自以为不及尧臣益刻厉精思苦学由是知名于时
+
+我之前给的断法是：
+
+> 欧阳修与为诗友/自以为不及/尧臣益刻厉/精思苦学/由是知名

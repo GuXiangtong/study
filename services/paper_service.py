@@ -10,6 +10,7 @@ from PIL import Image
 from config import (DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL,
                     DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_BASE_URL,
                     DOUBAO_MODEL, DOUBAO_VISION_MODEL, PAPER_TEMP_DIR)
+from utils.http_client import make_api_session
 
 # ── Question number regex (Chinese exam papers) ────────────────────
 _QUESTION_PATTERN = re.compile(
@@ -336,9 +337,10 @@ def _recognize_single_question_ocr(image_path, user_id=None):
         return raw_text
 
     is_anthropic = '/anthropic/' in api_url
+    session = make_api_session()
     try:
         if is_anthropic:
-            resp = requests.post(
+            resp = session.post(
                 api_url,
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
                 json={
@@ -352,7 +354,7 @@ def _recognize_single_question_ocr(image_path, user_id=None):
                 timeout=60,
             )
         else:
-            resp = requests.post(
+            resp = session.post(
                 api_url,
                 headers={
                     'Authorization': f'Bearer {api_key}',
@@ -606,9 +608,10 @@ def _refine_with_llm(questions, user_id=None):
 
     # Determine if using Anthropic-compatible endpoint
     is_anthropic = '/anthropic/' in api_url
+    session = make_api_session()
     try:
         if is_anthropic:
-            resp = requests.post(
+            resp = session.post(
                 api_url,
                 headers={
                     'x-api-key': api_key,
@@ -633,7 +636,7 @@ def _refine_with_llm(questions, user_id=None):
                 if block.get('type') == 'text':
                     content += block.get('text', '')
         else:
-            resp = requests.post(
+            resp = session.post(
                 api_url,
                 headers={
                     'Authorization': f'Bearer {api_key}',

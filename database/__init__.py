@@ -92,11 +92,24 @@ def _run_migrations(db):
             ALTER TABLE settings_new RENAME TO settings;
         ''')
 
+    # analysis_chats table (for follow-up Q&A on analysis result page)
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS analysis_chats (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            analysis_id INTEGER NOT NULL REFERENCES analysis_results(id) ON DELETE CASCADE,
+            user_id     INTEGER NOT NULL DEFAULT 1,
+            role        TEXT    NOT NULL,
+            content     TEXT    NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Indexes
     db.execute("CREATE INDEX IF NOT EXISTS idx_exams_user_id ON exams(user_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_questions_user_id ON questions(user_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_analysis_user_id ON analysis_results(user_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_practice_user_id ON practice_questions(user_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_chats_analysis_id ON analysis_chats(analysis_id)")
 
     db.commit()
 
@@ -173,6 +186,15 @@ def init_db():
             key         TEXT PRIMARY KEY,
             value       TEXT    NOT NULL,
             updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS analysis_chats (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            analysis_id INTEGER NOT NULL REFERENCES analysis_results(id) ON DELETE CASCADE,
+            user_id     INTEGER NOT NULL DEFAULT 1,
+            role        TEXT    NOT NULL,
+            content     TEXT    NOT NULL,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     ''')
 

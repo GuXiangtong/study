@@ -3,6 +3,7 @@ import os
 import re
 import requests
 from datetime import date
+from utils.http_client import make_api_session
 from config import (ANALYSIS_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
                     ANTHROPIC_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
                     DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
@@ -106,6 +107,7 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     is_openai_compat = '/chat/completions' in api_url
     is_anthropic = (api_url == ANTHROPIC_API_URL)
 
+    session = make_api_session()
     try:
         if is_openai_compat:
             # OpenAI-compatible format (Doubao, etc.)
@@ -122,7 +124,7 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 "temperature": 0.7,
                 "max_tokens": 8192,
             }
-            resp = requests.post(api_url, headers=headers, json=body, timeout=300)
+            resp = session.post(api_url, headers=headers, json=body, timeout=300)
             log(f"HTTP {resp.status_code}")
             resp.raise_for_status()
             data = resp.json()
@@ -144,7 +146,7 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 "max_tokens": 16384,
                 "thinking": {"type": "disabled"},
             }
-            resp = requests.post(api_url, headers=headers, json=body, timeout=120)
+            resp = session.post(api_url, headers=headers, json=body, timeout=120)
             log(f"HTTP {resp.status_code}")
             resp.raise_for_status()
             data = resp.json()
@@ -177,6 +179,63 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
         log(f"JSON parsed OK, top keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
         return result
 
+    except Exception as e:
+        log(f"EXCEPTION: {type(e).__name__}: {e}")
+        raise
+
+
+def _call_llm_chat(system_prompt, messages, api_key, api_url, model):
+    """Call an LLM API with a multi-turn conversation and return plain text."""
+    import datetime, os
+    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+
+    def log(msg):
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now().isoformat()}] [chat] {msg}\n")
+
+    from config import ANTHROPIC_API_URL
+    is_openai_compat = '/chat/completions' in api_url
+    is_anthropic = (api_url == ANTHROPIC_API_URL)
+
+    session = make_api_session()
+    try:
+        log(f"api_url={api_url}, model={model}, system_len={len(system_prompt)}, msgs={len(messages)}")
+        if is_openai_compat:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            body = {
+                "model": model,
+                "messages": [{"role": "system", "content": system_prompt}] + messages,
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            }
+            resp = session.post(api_url, headers=headers, json=body, timeout=120)
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        else:
+            headers = {"x-api-key": api_key, "Content-Type": "application/json"}
+            if is_anthropic:
+                headers["anthropic-version"] = "2023-06-01"
+            body = {
+                "model": model,
+                "system": system_prompt,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "thinking": {"type": "disabled"},
+            }
+            resp = session.post(api_url, headers=headers, json=body, timeout=120)
+            log(f"HTTP {resp.status_code}")
+            resp.raise_for_status()
+            data = resp.json()
+            blocks = data.get("content", [])
+            content = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+            if not content:
+                raise ValueError(f"API 返回了空内容。stop_reason: {data.get('stop_reason')}")
+            log(f"reply_len={len(content)}, preview={content[:100]}")
+            return content
     except Exception as e:
         log(f"EXCEPTION: {type(e).__name__}: {e}")
         raise
@@ -418,6 +477,94 @@ class AnalysisService:
         result = _parse_llm_response(llm_data)
         log("_parse_llm_response OK")
         return result
+
+    def chat(self, analysis, question, sub_questions, step1, step2, step3, step4, chat_history, user_message):
+        """Reply to a follow-up question using full analysis context as system prompt."""
+        api_key, api_url, model = self._get_llm_config()
+        system_prompt = self._build_chat_system_prompt(analysis, question, sub_questions, step1, step2, step3, step4)
+        messages = [{'role': m['role'], 'content': m['content']} for m in chat_history]
+        messages.append({'role': 'user', 'content': user_message})
+        return _call_llm_chat(system_prompt, messages, api_key, api_url, model)
+
+    def _build_chat_system_prompt(self, analysis, question, sub_questions, step1, step2, step3, step4):
+        parts = [
+            "你是一名上海市高三辅导老师，正在帮学生解答他对错题分析报告的追问。",
+            "请以自然对话方式回答，不要输出 JSON。",
+            "遵循苏格拉底式引导原则，重点启发而非直接给出答案。",
+            "使用简体中文，数学公式使用 LaTeX（行内 $...$，行间 $$...$$）。",
+            "所有知识点严格限定在上海市高考考纲范围内。",
+        ]
+
+        # 原题信息
+        parts.append(
+            f"\n## 原题信息\n"
+            f"学科：{analysis.get('subject_name', '')} | "
+            f"考试：{analysis.get('exam_name', '')} | "
+            f"题号：第 {analysis.get('question_number', '')} 题"
+        )
+        if question:
+            if question.get('stem'):
+                parts.append(f"\n**题目内容**：\n{question['stem']}")
+            if question.get('student_answer'):
+                parts.append(f"\n**学生作答**：{question['student_answer']}")
+            if question.get('error_reason'):
+                parts.append(f"**学生出错原因**：{question['error_reason']}")
+
+        if sub_questions:
+            parts.append("\n**子问题详情**：")
+            for sq in sub_questions:
+                label = sq.get('label', '')
+                lines = [f"第({label})小问"]
+                if sq.get('content'):
+                    lines.append(f"  题目：{sq['content']}")
+                if sq.get('correct_answer'):
+                    lines.append(f"  正确答案：{sq['correct_answer']}")
+                if sq.get('student_answer'):
+                    lines.append(f"  学生答案：{sq['student_answer']}")
+                if sq.get('error_reason'):
+                    lines.append(f"  出错原因：{sq['error_reason']}")
+                parts.append('\n'.join(lines))
+
+        # 四步分析结果
+        parts.append("\n## 四步分析结果")
+
+        if step1:
+            parts.append(f"\n### 第一步：错题分析与知识点定位")
+            if step1.get('question_summary'):
+                parts.append(f"题目简述：{step1['question_summary']}")
+            if step1.get('knowledge_points'):
+                parts.append(f"关联知识点：{step1['knowledge_points']}")
+            if step1.get('syllabus_section'):
+                parts.append(f"所属考纲板块：{step1['syllabus_section']}")
+            if step1.get('ai_analysis'):
+                parts.append(f"AI 分析：\n{step1['ai_analysis']}")
+
+        if step2:
+            parts.append(f"\n### 第二步：薄弱环节诊断")
+            if step2.get('weakness_analysis'):
+                parts.append(step2['weakness_analysis'])
+
+        if step3:
+            parts.append(f"\n### 第三步：解题路径引导")
+            for s in step3.get('steps', []):
+                parts.append(f"**{s.get('name', '')}**：{s.get('guidance', '')}")
+            if step3.get('correct_answer'):
+                parts.append(f"\n正确答案：{step3['correct_answer']}")
+            if step3.get('solution_steps'):
+                parts.append(f"解题步骤：\n{step3['solution_steps']}")
+
+        if step4 and step4.get('exercises'):
+            parts.append(f"\n### 第四步：巩固练习")
+            for ex in step4['exercises']:
+                parts.append(
+                    f"[{ex.get('difficulty', '')}] {ex.get('content', '')}\n"
+                    f"答案：{ex.get('answer', '')} | 知识点：{ex.get('knowledge_points', '')}"
+                )
+
+        parts.append(
+            "\n\n以上是学生正在查看的完整分析报告，请基于此回答学生的追问。"
+        )
+        return '\n'.join(parts)
 
     def _get_llm_config(self):
         """Return (api_key, api_url, model) for the current analysis method."""

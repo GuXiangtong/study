@@ -601,3 +601,98 @@ requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: http://api.d
 我之前给的断法是：
 
 > 欧阳修与为诗友/自以为不及/尧臣益刻厉/精思苦学/由是知名
+[2026-05-05T11:27:14.932796] _run_llm_analysis START
+[2026-05-05T11:27:14.933654] Built user prompt, length: 1540
+[2026-05-05T11:27:14.934676] Config: api_url=https://api.deepseek.com/anthropic/v1/messages, model=deepseek-v4-pro, key_ok=True
+[2026-05-05T11:27:14.936127] System prompt length: 1776, from_custom: True
+[2026-05-05T11:27:14.937607] Calling _call_llm...
+[2026-05-05T11:27:14.939011] Calling https://api.deepseek.com/anthropic/v1/messages model=deepseek-v4-pro
+[2026-05-05T11:27:14.940198] System prompt length: 1776, User prompt length: 1540
+[2026-05-05T11:27:16.315607] HTTP 403
+[2026-05-05T11:27:16.317269] EXCEPTION: HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+[2026-05-05T11:27:16.357083] LLM ERROR: HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 421, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 480, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 156, in _call_llm
+    resp.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 403 Client Error: Forbidden for url: http://api.deepseek.com/anthropic/v1/messages
+
+[2026-05-05T11:27:34.986910] _run_llm_analysis START
+[2026-05-05T11:27:34.987807] Built user prompt, length: 1540
+[2026-05-05T11:27:34.988552] Config: api_url=https://api.moonshot.cn/v1/chat/completions, model=kimi-k2.6, key_ok=True
+[2026-05-05T11:27:34.990107] System prompt length: 1776, from_custom: True
+[2026-05-05T11:27:34.991548] Calling _call_llm...
+[2026-05-05T11:27:34.992729] Calling https://api.moonshot.cn/v1/chat/completions model=kimi-k2.6
+[2026-05-05T11:27:34.993863] System prompt length: 1776, User prompt length: 1540
+[2026-05-05T11:27:35.281098] HTTP 401
+[2026-05-05T11:27:35.281946] EXCEPTION: HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+[2026-05-05T11:27:35.283365] LLM ERROR: HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 421, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 480, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 134, in _call_llm
+    resp.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+
+[2026-05-05T13:40:57.412418] _run_llm_analysis START
+[2026-05-05T13:40:57.413327] Built user prompt, length: 1540
+[2026-05-05T13:40:57.414128] Config: api_url=https://api.moonshot.cn/v1/chat/completions, model=kimi-k2.6, key_ok=True
+[2026-05-05T13:40:57.414779] System prompt length: 1776, from_custom: True
+[2026-05-05T13:40:57.415798] Calling _call_llm...
+[2026-05-05T13:40:57.416662] Calling https://api.moonshot.cn/v1/chat/completions model=kimi-k2.6
+[2026-05-05T13:40:57.417976] System prompt length: 1776, User prompt length: 1540
+[2026-05-05T13:40:57.721788] HTTP 401
+[2026-05-05T13:40:57.723010] EXCEPTION: HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+[2026-05-05T13:40:57.725581] LLM ERROR: HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+Traceback (most recent call last):
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 421, in run_full_analysis
+    step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
+                                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 480, in _run_llm_analysis
+    llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+  File "C:\My Projects\tong-study\services\analysis_service.py", line 134, in _call_llm
+    resp.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\I032060\AppData\Roaming\Python\Python314\site-packages\requests\models.py", line 1026, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://api.moonshot.cn/v1/chat/completions
+
+[2026-05-05T13:44:54.143233] _run_llm_analysis START
+[2026-05-05T13:44:54.144876] Built user prompt, length: 1540
+[2026-05-05T13:44:54.146133] Config: api_url=https://api.moonshot.cn/v1/chat/completions, model=kimi-k2.6, key_ok=True
+[2026-05-05T13:44:54.147924] System prompt length: 1776, from_custom: True
+[2026-05-05T13:44:54.149761] Calling _call_llm...
+[2026-05-05T13:44:54.151186] Calling https://api.moonshot.cn/v1/chat/completions model=kimi-k2.6
+[2026-05-05T13:44:54.152592] System prompt length: 1776, User prompt length: 1540
+[2026-05-05T13:46:40.002297] HTTP 200
+[2026-05-05T13:46:40.004082] Content length: 5522, finish_reason: stop
+[2026-05-05T13:46:40.006299] Extracted from markdown, new length: 5510
+[2026-05-05T13:46:40.006898] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-05T13:46:40.007915] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-05T13:46:40.008610] _parse_llm_response OK
+[2026-05-05T14:51:28.637953] _run_llm_analysis START
+[2026-05-05T14:51:28.638925] Built user prompt, length: 318
+[2026-05-05T14:51:28.639868] Config: api_url=https://api.moonshot.cn/v1/chat/completions, model=kimi-k2.6, key_ok=True
+[2026-05-05T14:51:28.640905] System prompt length: 1776, from_custom: True
+[2026-05-05T14:51:28.642928] Calling _call_llm...
+[2026-05-05T14:51:28.644332] Calling https://api.moonshot.cn/v1/chat/completions model=kimi-k2.6
+[2026-05-05T14:51:28.645520] System prompt length: 1776, User prompt length: 318
+[2026-05-05T14:54:21.540952] HTTP 200
+[2026-05-05T14:54:21.544163] Content length: 9492, finish_reason: stop
+[2026-05-05T14:54:21.546351] Extracted from markdown, new length: 9480
+[2026-05-05T14:54:21.547970] JSON parsed OK, top keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-05T14:54:21.549629] _call_llm returned, keys: ['step1', 'step2', 'step3', 'step4']
+[2026-05-05T14:54:21.550857] _parse_llm_response OK

@@ -7,7 +7,7 @@ from utils.http_client import make_api_session
 from config import (ANALYSIS_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
                     ANTHROPIC_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
                     DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
-                    DOUBAO_MODEL)
+                    DOUBAO_MODEL, MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL)
 from models.question import get_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
@@ -101,16 +101,17 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     log(f"Calling {api_url} model={model}")
     log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
 
-    from config import ANTHROPIC_API_URL
+    from config import ANTHROPIC_API_URL, KIMI_API_URL
 
     # Doubao and other OpenAI-compatible endpoints use /chat/completions
     is_openai_compat = '/chat/completions' in api_url
     is_anthropic = (api_url == ANTHROPIC_API_URL)
+    is_kimi = (api_url == KIMI_API_URL)
 
     session = make_api_session()
     try:
         if is_openai_compat:
-            # OpenAI-compatible format (Doubao, etc.)
+            # OpenAI-compatible format (Doubao, Kimi, etc.)
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -121,9 +122,13 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                "temperature": 0.7,
                 "max_tokens": 8192,
             }
+            # Kimi k2.6 rejects temperature/top_p/etc.; other models accept them
+            if not is_kimi:
+                body["temperature"] = 0.7
+            else:
+                body["thinking"] = {"type": "disabled"}
             resp = session.post(api_url, headers=headers, json=body, timeout=300)
             log(f"HTTP {resp.status_code}")
             resp.raise_for_status()
@@ -193,9 +198,10 @@ def _call_llm_chat(system_prompt, messages, api_key, api_url, model):
         with open(log_path, 'a', encoding='utf-8') as f:
             f.write(f"[{datetime.datetime.now().isoformat()}] [chat] {msg}\n")
 
-    from config import ANTHROPIC_API_URL
+    from config import ANTHROPIC_API_URL, KIMI_API_URL
     is_openai_compat = '/chat/completions' in api_url
     is_anthropic = (api_url == ANTHROPIC_API_URL)
+    is_kimi = (api_url == KIMI_API_URL)
 
     session = make_api_session()
     try:
@@ -208,9 +214,12 @@ def _call_llm_chat(system_prompt, messages, api_key, api_url, model):
             body = {
                 "model": model,
                 "messages": [{"role": "system", "content": system_prompt}] + messages,
-                "temperature": 0.7,
                 "max_tokens": 4096,
             }
+            if not is_kimi:
+                body["temperature"] = 0.7
+            else:
+                body["thinking"] = {"type": "disabled"}
             resp = session.post(api_url, headers=headers, json=body, timeout=120)
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"]
@@ -407,7 +416,7 @@ class AnalysisService:
         sub_questions = [dict(sq) for sq in get_sub_questions_by_question(question_id)]
 
         llm_error = None
-        if self.mode in ('llm', 'deepseek', 'doubao_seed', 'anthropic'):
+        if self.mode in ('llm', 'deepseek', 'doubao_seed', 'anthropic', 'kimi'):
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
@@ -572,6 +581,8 @@ class AnalysisService:
             return DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_MODEL
         if self.mode == 'anthropic':
             return ANTHROPIC_API_KEY, ANTHROPIC_API_URL, ANTHROPIC_MODEL
+        if self.mode == 'kimi':
+            return MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL
         return DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 
     def _save_analysis(self, question, step1, step2, step3, step4):
@@ -589,6 +600,7 @@ class AnalysisService:
         model_label = {
             'doubao_seed': 'Doubao Seed',
             'anthropic': 'Anthropic (Claude)',
+            'kimi': 'Kimi k2.6',
         }.get(self.mode, 'DeepSeek')
         analysis_id = create_analysis(
             sub_question_id=None,
@@ -802,6 +814,7 @@ class AnalysisService:
         model_name = {
             'doubao_seed': 'Doubao Seed AI',
             'anthropic': 'Anthropic (Claude)',
+            'kimi': 'Kimi k2.6',
         }.get(mode, 'DeepSeek AI')
         content += f"\n---\n*本报告由 {model_name} 自动生成*\n"
 

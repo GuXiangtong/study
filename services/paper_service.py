@@ -9,7 +9,9 @@ from PIL import Image
 
 from config import (DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL,
                     DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_BASE_URL,
-                    DOUBAO_MODEL, DOUBAO_VISION_MODEL, PAPER_TEMP_DIR)
+                    DOUBAO_MODEL, DOUBAO_VISION_MODEL,
+                    MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL,
+                    PAPER_TEMP_DIR)
 from utils.http_client import make_api_session
 
 # ── Question number regex (Chinese exam papers) ────────────────────
@@ -114,6 +116,8 @@ def _get_recognition_llm_config(user_id=None):
 
     if method == 'doubao_seed':
         return DOUBAO_API_KEY, DOUBAO_API_URL, DOUBAO_MODEL
+    if method == 'kimi':
+        return MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL
     return DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL
 
 
@@ -304,6 +308,87 @@ def _recognize_single_question(image_path):
 
     if not raw_text:
         return ''
+
+    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_text, re.DOTALL)
+    if json_match:
+        raw_text = json_match.group(1)
+
+    try:
+        return json.loads(raw_text).get('content', '')
+    except json.JSONDecodeError:
+        sanitized = _sanitize_llm_json(raw_text)
+        try:
+            return json.loads(sanitized).get('content', '')
+        except json.JSONDecodeError:
+            return raw_text.strip()
+
+
+def _kimi_vision_post(system_prompt, image_path, user_message):
+    """POST a vision request to Kimi k2.6 and return the raw text response.
+
+    Kimi k2.6 constraints: must NOT set temperature/top_p/n/presence_penalty/
+    frequency_penalty; thinking defaults to enabled so we explicitly disable it.
+    """
+    if not MOONSHOT_API_KEY:
+        raise RuntimeError('Kimi 视觉识别需要配置 MOONSHOT_API_KEY，请在 .claude/apikey 中填写。')
+
+    data_uri = _encode_image_for_api(image_path)
+    session = make_api_session()
+    resp = session.post(
+        KIMI_API_URL,
+        headers={
+            'Authorization': f'Bearer {MOONSHOT_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+        json={
+            'model': KIMI_MODEL,
+            'messages': [
+                {'role': 'system', 'content': system_prompt},
+                {
+                    'role': 'user',
+                    'content': [
+                        {'type': 'image_url', 'image_url': {'url': data_uri}},
+                        {'type': 'text', 'text': user_message},
+                    ],
+                },
+            ],
+            'thinking': {'type': 'disabled'},
+        },
+        timeout=300,
+    )
+    resp.raise_for_status()
+    return resp.json()['choices'][0]['message']['content']
+
+
+def _recognize_page_with_kimi(image_path, page_num, total_pages):
+    """Use Kimi k2.6 vision model to recognize questions on a page image."""
+    raw_text = _kimi_vision_post(
+        DOUBAO_VISION_PROMPT,
+        image_path,
+        f'请识别这张图片（第 {page_num}/{total_pages} 页）的所有题目。只输出JSON，不要任何其他文字。',
+    )
+
+    json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_text, re.DOTALL)
+    if json_match:
+        raw_text = json_match.group(1)
+
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        sanitized = _sanitize_llm_json(raw_text)
+        try:
+            return json.loads(sanitized)
+        except json.JSONDecodeError:
+            return {'questions': [], 'note': f'Failed to parse JSON: {raw_text[:200]}'}
+
+
+def _recognize_single_question_kimi(image_path):
+    """Recognize a cropped question image using Kimi k2.6 vision API."""
+    raw_text = _kimi_vision_post(
+        '你是一个高考题目识别助手。',
+        image_path,
+        _SINGLE_Q_PROMPT + '\n只输出JSON，不要任何其他文字。',
+    )
 
     json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', raw_text, re.DOTALL)
     if json_match:
@@ -889,17 +974,21 @@ def process_paper(file, task_id, user_id=None):
 
     page_image_names = [os.path.basename(p) for p in page_images]
 
-    # ── Doubao Seed vision path ──
-    if recognition_method == 'doubao_seed':
+    # ── Doubao Seed / Kimi vision path ──
+    if recognition_method in ('doubao_seed', 'kimi'):
         all_questions = []
         errors = []
         total = len(page_images)
         for idx, page_img in enumerate(page_images):
             page_num = idx + 1
             try:
-                result = _recognize_page_with_doubao(page_img, page_num, total)
+                if recognition_method == 'kimi':
+                    result = _recognize_page_with_kimi(page_img, page_num, total)
+                else:
+                    result = _recognize_page_with_doubao(page_img, page_num, total)
             except Exception as e:
-                errors.append(f'第{page_num}页 Doubao Seed 识别失败：{e}')
+                label = 'Kimi' if recognition_method == 'kimi' else 'Doubao Seed'
+                errors.append(f'第{page_num}页 {label} 识别失败：{e}')
                 continue
 
             questions = result.get('questions', [])
@@ -1125,6 +1214,8 @@ def recognize_question_images(task_id, questions_data, user_id=None):
         try:
             if recognition_method == 'doubao_seed':
                 content = _recognize_single_question(img_path)
+            elif recognition_method == 'kimi':
+                content = _recognize_single_question_kimi(img_path)
             else:
                 # paddleocr_deepseek: OCR the cropped image, then refine with text LLM
                 content = _recognize_single_question_ocr(img_path, user_id=user_id)

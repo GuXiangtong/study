@@ -32,7 +32,13 @@
       "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT, _REFINE_SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\), len\\(_REFINE_SINGLE_Q_PROMPT\\)\\)\")",
       "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\)\\)\")",
       "Bash(python)",
-      "Bash(python -c \"import app\")"
+      "Bash(python -c \"import app\")",
+      "Bash(find \"c:/My Projects\" -name \"*kimi*\" -o -name \"*introduction*\" 2>/dev/null | head -20)",
+      "Read(//c/My Projects/**)",
+      "Bash(curl -s --max-time 15 \"https://platform.kimi.com/docs/guide/use-kimi-vision-model.md\")",
+      "Bash(python -c \"from config import MOONSHOT_API_KEY; print\\(repr\\(MOONSHOT_API_KEY[:20]\\)\\)\")",
+      "Bash(tasklist /FI \"IMAGENAME eq python.exe\")",
+      "Bash(kill 149 160)"
     ]
   }
 }

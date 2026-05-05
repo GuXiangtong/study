@@ -7,12 +7,14 @@ from database import get_db
 RECOGNITION_METHODS = {
     'paddleocr_deepseek': 'PaddleOCR + DeepSeek',
     'doubao_seed': 'Doubao Seed',
+    'kimi': 'Kimi k2.6',
 }
 
 ANALYSIS_METHODS = {
     'deepseek': 'DeepSeek',
     'anthropic': 'Anthropic (Claude)',
     'doubao_seed': 'Doubao Seed',
+    'kimi': 'Kimi k2.6',
 }
 
 

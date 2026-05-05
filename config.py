@@ -26,6 +26,7 @@ if os.path.exists(_apikey_path):
 
 DEEPSEEK_API_KEY = _apikeys.get('DEEPSEEK_API_KEY', os.environ.get('DEEPSEEK_API_KEY', ''))
 DOUBAO_API_KEY = _apikeys.get('DOUBAO_API_KEY', os.environ.get('DOUBAO_API_KEY', ''))
+MOONSHOT_API_KEY = _apikeys.get('MOONSHOT_API_KEY', os.environ.get('MOONSHOT_API_KEY', ''))
 
 # DeepSeek (Anthropic-compatible endpoint)
 DEEPSEEK_API_URL = 'https://api.deepseek.com/anthropic/v1/messages'
@@ -42,6 +43,10 @@ DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
 DOUBAO_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 DOUBAO_MODEL = 'doubao-seed-2-0-pro-260215'
 DOUBAO_VISION_MODEL = 'doubao-seed-1-6-vision-250815'
+
+# Kimi (Moonshot AI) — OpenAI-compatible, supports vision
+KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'
+KIMI_MODEL = 'kimi-k2.6'
 
 # Legacy alias (used by existing code)
 LLM_API_KEY = DEEPSEEK_API_KEY

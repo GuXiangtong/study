@@ -31,7 +31,8 @@
       "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT, _REFINE_SINGLE_Q_PROMPT; print\\('OK'\\); print\\('---SINGLE---'\\); print\\(_SINGLE_Q_PROMPT[:120]\\); print\\('---REFINE---'\\); print\\(_REFINE_SINGLE_Q_PROMPT[:120]\\)\")",
       "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT, _REFINE_SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\), len\\(_REFINE_SINGLE_Q_PROMPT\\)\\)\")",
       "Bash(python -c \"from services.paper_service import _SINGLE_Q_PROMPT; print\\(len\\(_SINGLE_Q_PROMPT\\)\\)\")",
-      "Bash(python)"
+      "Bash(python)",
+      "Bash(python -c \"import app\")"
     ]
   }
 }

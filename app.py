@@ -65,8 +65,14 @@ def serve_image(subject, exam, filename):
     return send_from_directory(dir_path, filename)
 
 
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('errors/403.html'), 403
+
+
 # Register blueprints
 from routes.auth import auth_bp
+from routes.admin import admin_bp
 from routes.exams import exams_bp
 from routes.questions import questions_bp
 from routes.analysis import analysis_bp
@@ -75,6 +81,7 @@ from routes.paper import paper_bp
 from routes.settings import settings_bp
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(admin_bp)
 app.register_blueprint(exams_bp)
 app.register_blueprint(questions_bp)
 app.register_blueprint(analysis_bp)

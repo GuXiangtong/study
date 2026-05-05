@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}用户管理 - 高考错题复习助手{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>用户管理</h1>
+    <p>管理系统用户，创建账号或删除账号及其所有数据</p>
+</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <h2>创建用户</h2>
+    <form method="POST" action="{{ url_for('admin.create_user_route') }}" class="inline-form" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;flex:1;min-width:140px;">
+            <label>用户名</label>
+            <input type="text" name="username" placeholder="至少 2 个字符" required minlength="2">
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+            <label>初始密码</label>
+            <input type="text" name="password" placeholder="至少 6 个字符" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary">创建用户</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>所有用户</h2>
+    <table class="data-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>用户名</th>
+                <th>角色</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+        <tr>
+            <td>
+                {{ user.username }}
+                {% if user.id == current_user.id %}<span class="badge" style="background:#e0e7ff;color:var(--primary);">自己</span>{% endif %}
+            </td>
+            <td>
+                {% if user.is_admin %}
+                <span class="badge" style="background:#fef3c7;color:#92400e;">管理员</span>
+                {% else %}
+                <span class="badge" style="background:#f3f4f6;color:#6b7280;">普通用户</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if user.must_change_password %}
+                <span class="badge" style="background:#fef2f2;color:#991b1b;">待改密</span>
+                {% else %}
+                <span class="badge" style="background:#f0fdf4;color:#166534;">正常</span>
+                {% endif %}
+            </td>
+            <td>{{ user.created_at | localtime }}</td>
+            <td style="display:flex;gap:8px;flex-wrap:wrap;">
+                <!-- Reset password -->
+                <button class="btn btn-secondary btn-small"
+                        onclick="showResetForm({{ user.id }}, '{{ user.username }}')">重置密码</button>
+                <!-- Delete -->
+                {% if user.id != current_user.id %}
+                <form method="POST" action="{{ url_for('admin.delete_user_route', user_id=user.id) }}"
+                      onsubmit="return confirm('确定要删除用户「{{ user.username }}」及其所有数据吗？此操作不可恢复！')">
+                    <button type="submit" class="btn btn-danger btn-small">删除</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        <!-- Inline reset-password form (hidden by default) -->
+        <tr id="reset-form-{{ user.id }}" style="display:none;background:#f8fafc;">
+            <td colspan="5">
+                <form method="POST" action="{{ url_for('admin.reset_password', user_id=user.id) }}"
+                      style="display:flex;gap:12px;align-items:center;padding:8px 0;flex-wrap:wrap;">
+                    <span style="color:#6b7280;font-size:0.9em;">重置「{{ user.username }}」的密码：</span>
+                    <input type="text" name="new_password" placeholder="新密码（至少 6 位）" required minlength="6"
+                           style="flex:1;min-width:160px;">
+                    <button type="submit" class="btn btn-primary btn-small">确认重置</button>
+                    <button type="button" class="btn btn-secondary btn-small"
+                            onclick="hideResetForm({{ user.id }})">取消</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showResetForm(id, name) {
+    document.getElementById('reset-form-' + id).style.display = '';
+}
+function hideResetForm(id) {
+    document.getElementById('reset-form-' + id).style.display = 'none';
+}
+</script>
+{% endblock %}

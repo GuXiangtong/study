@@ -25,11 +25,13 @@
                 <a href="{{ url_for('questions.create') }}">录入题目</a>
                 <a href="{{ url_for('paper.upload') }}">试卷导入</a>
                 <a href="{{ url_for('settings.index') }}">设置</a>
-                <span class="nav-user">{{ current_user.username }}</span>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin.users') }}">用户管理</a>
+                {% endif %}
+                <a href="{{ url_for('auth.change_password') }}">{{ current_user.username }}</a>
                 <a href="{{ url_for('auth.logout') }}" class="nav-logout">退出</a>
                 {% else %}
                 <a href="{{ url_for('auth.login') }}">登录</a>
-                <a href="{{ url_for('auth.register') }}">注册</a>
                 {% endif %}
             </div>
         </div>

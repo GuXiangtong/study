@@ -27,22 +27,33 @@ def _column_exists(db, table, column):
 def _run_migrations(db):
     """Add users table and user_id columns to existing databases."""
 
-    # Users table
+    # Users table (new installs get full schema; existing tables are untouched by CREATE IF NOT EXISTS)
     db.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            username      TEXT    NOT NULL UNIQUE,
-            password_hash TEXT    NOT NULL,
-            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            username             TEXT    NOT NULL UNIQUE,
+            password_hash        TEXT    NOT NULL,
+            is_admin             INTEGER NOT NULL DEFAULT 0,
+            must_change_password INTEGER NOT NULL DEFAULT 0,
+            created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     ''')
 
-    # Insert default user for existing data (id=1)
+    # Add new columns to existing users table if missing (must come BEFORE any INSERT using them)
+    if not _column_exists(db, 'users', 'is_admin'):
+        db.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
+    if not _column_exists(db, 'users', 'must_change_password'):
+        db.execute("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0")
+
+    # Insert default user for existing data (id=1) and make it admin
     default_hash = generate_password_hash('changeme123')
     db.execute(
-        "INSERT OR IGNORE INTO users (id, username, password_hash) VALUES (?, ?, ?)",
+        "INSERT OR IGNORE INTO users (id, username, password_hash, is_admin) VALUES (?, ?, ?, 1)",
         (1, 'default', default_hash)
     )
+    # Ensure existing default user is admin (in case it was already inserted without is_admin)
+    db.execute("UPDATE users SET is_admin = 1 WHERE id = 1")
 
     # Add user_id to exams (SQLite ALTER TABLE cannot add REFERENCES with non-NULL default)
     if not _column_exists(db, 'exams', 'user_id'):
@@ -116,7 +127,17 @@ def _run_migrations(db):
 
 def init_db():
     db = sqlite3.connect(DATABASE_PATH)
+    db.row_factory = sqlite3.Row
     db.executescript('''
+        CREATE TABLE IF NOT EXISTS users (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            username             TEXT    NOT NULL UNIQUE,
+            password_hash        TEXT    NOT NULL,
+            is_admin             INTEGER NOT NULL DEFAULT 0,
+            must_change_password INTEGER NOT NULL DEFAULT 0,
+            created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS subjects (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT    NOT NULL UNIQUE,
@@ -197,6 +218,13 @@ def init_db():
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     ''')
+
+    # Create initial admin user if none exists
+    admin_hash = generate_password_hash('admin123')
+    db.execute(
+        "INSERT OR IGNORE INTO users (username, password_hash, is_admin, must_change_password) VALUES (?, ?, 1, 1)",
+        ('admin', admin_hash)
+    )
 
     for subj in SUBJECTS:
         db.execute("INSERT OR IGNORE INTO subjects (name) VALUES (?)", (subj,))

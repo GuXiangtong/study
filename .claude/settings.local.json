@@ -38,7 +38,8 @@
       "Bash(curl -s --max-time 15 \"https://platform.kimi.com/docs/guide/use-kimi-vision-model.md\")",
       "Bash(python -c \"from config import MOONSHOT_API_KEY; print\\(repr\\(MOONSHOT_API_KEY[:20]\\)\\)\")",
       "Bash(tasklist /FI \"IMAGENAME eq python.exe\")",
-      "Bash(kill 149 160)"
+      "Bash(kill 149 160)",
+      "WebFetch(domain:cn.aliyun.com)"
     ]
   }
 }

@@ -6,7 +6,7 @@ import uuid
 from flask import (Blueprint, flash, jsonify, redirect, render_template,
                    request, send_from_directory, url_for, session)
 
-from config import BASE_DIR, PAPER_TEMP_DIR
+from config import DATA_DIR, PAPER_TEMP_DIR
 from utils.decorators import login_required
 from models.exam import create_exam, get_exam, get_all_exams
 from models.question import create_question
@@ -174,7 +174,7 @@ def confirm(task_id):
 
         image_path = None
         if img_path and os.path.isfile(img_path):
-            dest_dir = os.path.join(BASE_DIR, subject_name, exam_name)
+            dest_dir = os.path.join(DATA_DIR, subject_name, exam_name)
             os.makedirs(dest_dir, exist_ok=True)
             dest_file = f'{q_num}.png'
             shutil.copy(img_path, os.path.join(dest_dir, dest_file))

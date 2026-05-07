@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from config import BASE_DIR, UPLOAD_EXTENSIONS
+from config import DATA_DIR, UPLOAD_EXTENSIONS
 from utils.decorators import login_required
 from models.subject import get_all_subjects
 from models.exam import get_all_exams, get_exam, create_exam
@@ -69,7 +69,7 @@ def create():
         if ext in UPLOAD_EXTENSIONS:
             subject_name = next((s['name'] for s in get_all_subjects() if s['id'] == subject_id), None)
             if subject_name and exam_name:
-                dir_path = os.path.join(BASE_DIR, subject_name, exam_name)
+                dir_path = os.path.join(DATA_DIR, subject_name, exam_name)
                 os.makedirs(dir_path, exist_ok=True)
                 filename = f"{question_number}{ext}"
                 file.save(os.path.join(dir_path, filename))
@@ -146,7 +146,7 @@ def edit(question_id):
         if ext in UPLOAD_EXTENSIONS:
             subject_name = question['subject_name']
             exam_name = question['exam_name']
-            dir_path = os.path.join(BASE_DIR, subject_name, exam_name)
+            dir_path = os.path.join(DATA_DIR, subject_name, exam_name)
             os.makedirs(dir_path, exist_ok=True)
             filename = f"{question_number}{ext}"
             file.save(os.path.join(dir_path, filename))
@@ -168,7 +168,7 @@ def delete(question_id):
         # Remove image file from disk
         image_path = question.get('image_path')
         if image_path:
-            full_path = os.path.join(BASE_DIR, image_path)
+            full_path = os.path.join(DATA_DIR, image_path)
             if os.path.isfile(full_path):
                 os.remove(full_path)
         delete_question(question_id)

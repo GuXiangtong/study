@@ -1,0 +1,53 @@
+# ─── 用户数据（不随代码同步）───────────────────────────────
+# 数据库
+study.db
+
+# 用户上传的试卷图片（按科目存储）
+数学/
+物理/
+英语/
+语文/
+化学/
+生物/
+
+# 错题分析结果
+错题分析/
+
+# 临时文件
+_tmp/
+
+# API密钥（敏感信息）
+.claude/
+
+# 运行日志
+logs/
+
+# 备份
+backup/
+
+# ─── 开发/运行环境 ─────────────────────────────────────────
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+venv/
+.venv/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境变量文件
+.env

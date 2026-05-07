@@ -20,9 +20,9 @@ graceful_timeout = 30
 max_requests = 500
 max_requests_jitter = 50
 
-# 日志配置
-accesslog = "/opt/tong-study/logs/access.log"
-errorlog = "/opt/tong-study/logs/error.log"
+# 日志配置（日志放在数据目录，不随代码更新）
+accesslog = "/opt/tong-study-data/logs/access.log"
+errorlog = "/opt/tong-study-data/logs/error.log"
 loglevel = "info"
 
 # 访问日志格式
@@ -35,4 +35,4 @@ proc_name = "tong-study"
 preload_app = True
 
 # PID文件
-pidfile = "/opt/tong-study/logs/gunicorn.pid"
+pidfile = "/opt/tong-study-data/logs/gunicorn.pid"

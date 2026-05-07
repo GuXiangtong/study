@@ -1,15 +1,21 @@
 import os
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATABASE_PATH = os.path.join(BASE_DIR, 'study.db')
-ANALYSIS_DIR = os.path.join(BASE_DIR, '错题分析')
+
+# 数据目录：用户数据（数据库、图片、分析结果）存放位置
+# 生产环境通过环境变量 DATA_DIR 指定独立数据目录（如 /opt/tong-study-data）
+# 开发环境不设置则默认与代码同目录
+DATA_DIR = os.environ.get('DATA_DIR', BASE_DIR)
+
+DATABASE_PATH = os.path.join(DATA_DIR, 'study.db')
+ANALYSIS_DIR = os.path.join(DATA_DIR, '错题分析')
 
 SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物']
 
 UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 PAPER_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32 MB
-PAPER_TEMP_DIR = os.path.join(BASE_DIR, '_tmp', 'papers')
+PAPER_TEMP_DIR = os.path.join(DATA_DIR, '_tmp', 'papers')
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'study-app-dev-key-gaokao')
 

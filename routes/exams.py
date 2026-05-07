@@ -1,6 +1,6 @@
 import os, shutil
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from config import BASE_DIR
+from config import DATA_DIR
 from utils.decorators import login_required
 from models.subject import get_all_subjects
 from models.exam import create_exam, get_all_exams, get_exam, delete_exam
@@ -44,7 +44,7 @@ def delete(exam_id):
     # Delete image files from disk first
     subject = next((s for s in get_all_subjects() if s['id'] == exam['subject_id']), None)
     if subject:
-        exam_dir = os.path.join(BASE_DIR, subject['name'], exam['name'])
+        exam_dir = os.path.join(DATA_DIR, subject['name'], exam['name'])
         if os.path.isdir(exam_dir):
             shutil.rmtree(exam_dir)
 

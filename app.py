@@ -2,7 +2,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from flask import Flask, render_template, send_from_directory, session, g
-from config import SECRET_KEY, BASE_DIR, SUBJECTS
+from config import SECRET_KEY, BASE_DIR, DATA_DIR, SUBJECTS
 from database import init_app as init_db
 from utils.decorators import login_required
 from models.user import get_user_by_id
@@ -61,7 +61,7 @@ def index():
 @login_required
 def serve_image(subject, exam, filename):
     import os
-    dir_path = os.path.join(BASE_DIR, subject, exam)
+    dir_path = os.path.join(DATA_DIR, subject, exam)
     return send_from_directory(dir_path, filename)
 
 

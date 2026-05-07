@@ -156,7 +156,7 @@ pip install --upgrade pip setuptools wheel
 
 ```bash
 # 安装PaddlePaddle（CPU版，适合服务器）
-pip install paddlepaddle==3.0.0
+pip install paddlepaddle==3.0.0 -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 
 # 安装其他依赖
 pip install flask>=3.0 requests>=2.31 pymupdf>=1.24.0 Pillow>=10.0.0

@@ -2,9 +2,10 @@ import os
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for, session
 from utils.decorators import login_required
-from models.settings import (ANALYSIS_METHODS, RECOGNITION_METHODS,
+from models.settings import (get_available_recognition_methods, get_available_analysis_methods,
                              get_all_settings, set_setting,
-                             get_subject_prompts, set_subject_prompts)
+                             get_subject_prompts, set_subject_prompts,
+                             fix_user_model_settings)
 from models.subject import get_all_subjects
 from config import BASE_DIR
 
@@ -26,13 +27,17 @@ settings_bp = Blueprint('settings', __name__)
 def index():
     user_id = session['user_id']
 
+    # Get admin-filtered available methods
+    recognition_methods = get_available_recognition_methods()
+    analysis_methods = get_available_analysis_methods()
+
     if request.method == 'POST':
         recognition = request.form.get('recognition_method', 'paddleocr_deepseek')
         analysis = request.form.get('analysis_method', 'deepseek')
 
-        if recognition in RECOGNITION_METHODS:
+        if recognition in recognition_methods:
             set_setting('recognition_method', recognition, user_id=user_id)
-        if analysis in ANALYSIS_METHODS:
+        if analysis in analysis_methods:
             set_setting('analysis_method', analysis, user_id=user_id)
 
         # Save subject-specific prompts
@@ -51,12 +56,15 @@ def index():
         flash('设置已保存', 'success')
         return redirect(url_for('settings.index'))
 
+    # Auto-fix if user's current model was disabled by admin
+    fix_user_model_settings(user_id)
+
     current = get_all_settings(user_id=user_id)
     subjects = get_all_subjects()
     subject_prompts = get_subject_prompts(user_id=user_id)
     return render_template('settings/index.html',
-                           recognition_methods=RECOGNITION_METHODS,
-                           analysis_methods=ANALYSIS_METHODS,
+                           recognition_methods=recognition_methods,
+                           analysis_methods=analysis_methods,
                            current=current,
                            subjects=subjects,
                            subject_prompts=subject_prompts,

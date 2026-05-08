@@ -1,5 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.user import list_all_users, create_user, delete_user, update_password, count_admins, get_user_by_id
+from models.settings import (RECOGNITION_METHODS, ANALYSIS_METHODS,
+                             get_enabled_recognition_methods, set_enabled_recognition_methods,
+                             get_enabled_analysis_methods, set_enabled_analysis_methods)
 from utils.decorators import admin_required
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -75,3 +78,28 @@ def delete_user_route(user_id):
     delete_user(user_id)
     flash(f'用户「{target["username"]}」及其所有数据已删除', 'success')
     return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/models', methods=['GET', 'POST'])
+@admin_required
+def models_config():
+    """管理员配置哪些大模型可供用户选择。"""
+    if request.method == 'POST':
+        # Get checked recognition methods from form
+        recognition_keys = request.form.getlist('recognition_methods')
+        analysis_keys = request.form.getlist('analysis_methods')
+
+        set_enabled_recognition_methods(recognition_keys)
+        set_enabled_analysis_methods(analysis_keys)
+
+        flash('模型配置已保存', 'success')
+        return redirect(url_for('admin.models_config'))
+
+    enabled_recognition = get_enabled_recognition_methods()
+    enabled_analysis = get_enabled_analysis_methods()
+
+    return render_template('admin/models.html',
+                           recognition_methods=RECOGNITION_METHODS,
+                           analysis_methods=ANALYSIS_METHODS,
+                           enabled_recognition=enabled_recognition,
+                           enabled_analysis=enabled_analysis)

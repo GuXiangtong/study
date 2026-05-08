@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}模型管理 - 高考错题复习助手{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>模型管理</h1>
+    <p>配置系统中可用的大模型。禁用某个模型后，所有用户将无法选择该模型。</p>
+</div>
+
+<form method="POST">
+    <div class="card" style="margin-bottom:24px;">
+        <h2>题目识别</h2>
+        <p class="form-hint" style="margin-bottom:12px;">
+            控制用户在「设置」页面中可选的题目识别方式。至少需要启用一个。
+        </p>
+        {% for key, label in recognition_methods.items() %}
+        <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" name="recognition_methods" value="{{ key }}"
+                   {% if key in enabled_recognition %}checked{% endif %}>
+            <div>
+                <strong>{{ label }}</strong>
+                {% if key in enabled_recognition %}
+                <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
+                {% else %}
+                <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
+                {% endif %}
+            </div>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+        <h2>题目分析</h2>
+        <p class="form-hint" style="margin-bottom:12px;">
+            控制用户在「设置」页面中可选的题目分析 AI 模型。至少需要启用一个。
+        </p>
+        {% for key, label in analysis_methods.items() %}
+        <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" name="analysis_methods" value="{{ key }}"
+                   {% if key in enabled_analysis %}checked{% endif %}>
+            <div>
+                <strong>{{ label }}</strong>
+                {% if key in enabled_analysis %}
+                <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
+                {% else %}
+                <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
+                {% endif %}
+            </div>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="card" style="background:#fffbeb;border-color:#fbbf24;margin-bottom:24px;">
+        <p style="margin:0;color:#92400e;font-size:0.9em;">
+            ⚠️ <strong>注意：</strong>如果禁用了某个模型，已选择该模型的用户在下次登录时会自动切换到第一个可用模型。
+        </p>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">保存配置</button>
+        <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">返回用户管理</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // Prevent form submission if no checkbox is checked in a section
+    document.querySelector('form').addEventListener('submit', function(e) {
+        var recChecked = document.querySelectorAll('input[name="recognition_methods"]:checked');
+        var anaChecked = document.querySelectorAll('input[name="analysis_methods"]:checked');
+        
+        if (recChecked.length === 0) {
+            e.preventDefault();
+            alert('题目识别至少需要启用一个模型');
+            return;
+        }
+        if (anaChecked.length === 0) {
+            e.preventDefault();
+            alert('题目分析至少需要启用一个模型');
+            return;
+        }
+    });
+})();
+</script>
+{% endblock %}

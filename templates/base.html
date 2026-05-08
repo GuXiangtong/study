@@ -27,6 +27,7 @@
                 <a href="{{ url_for('settings.index') }}">设置</a>
                 {% if current_user.is_admin %}
                 <a href="{{ url_for('admin.users') }}">用户管理</a>
+                <a href="{{ url_for('admin.models_config') }}">模型管理</a>
                 {% endif %}
                 <a href="{{ url_for('auth.change_password') }}">{{ current_user.username }}</a>
                 <a href="{{ url_for('auth.logout') }}" class="nav-logout">退出</a>

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.user import verify_user, get_user_by_id, update_password
+from models.settings import fix_user_model_settings
 from utils.decorators import login_required
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -22,6 +23,10 @@ def login():
         session.clear()
         session['user_id'] = user['id']
         session['username'] = user['username']
+
+        # Fix model settings if admin disabled a model the user had selected
+        fix_user_model_settings(user['id'])
+
         if user.get('must_change_password'):
             flash('首次登录，请修改初始密码', 'warning')
             return redirect(url_for('auth.change_password'))

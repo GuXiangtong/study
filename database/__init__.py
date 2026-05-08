@@ -122,6 +122,11 @@ def _run_migrations(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_practice_user_id ON practice_questions(user_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_chats_analysis_id ON analysis_chats(analysis_id)")
 
+    # Sync subjects from config — runs on every startup so new subjects are
+    # added automatically without manual SQL.
+    for subj in SUBJECTS:
+        db.execute("INSERT OR IGNORE INTO subjects (name) VALUES (?)", (subj,))
+
     db.commit()
 
 

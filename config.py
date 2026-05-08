@@ -10,7 +10,7 @@ DATA_DIR = os.environ.get('DATA_DIR', BASE_DIR)
 DATABASE_PATH = os.path.join(DATA_DIR, 'study.db')
 ANALYSIS_DIR = os.path.join(DATA_DIR, '错题分析')
 
-SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物']
+SUBJECTS = ['语文', '数学', '英语', '物理', '化学', '生物', '日语']
 
 UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 PAPER_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}

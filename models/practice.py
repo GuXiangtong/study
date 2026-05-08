@@ -13,13 +13,17 @@ def create_practice(analysis_result_id, difficulty, content, answer=None,
     return db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
-def get_practices_by_analysis(analysis_result_id):
+def get_practices_by_analysis(analysis_result_id, user_id=None):
     db = get_db()
-    return db.execute(
-        "SELECT * FROM practice_questions WHERE analysis_result_id = ? "
-        "ORDER BY CASE difficulty WHEN 'basic' THEN 1 WHEN 'intermediate' THEN 2 WHEN 'advanced' THEN 3 END",
-        (analysis_result_id,)
-    ).fetchall()
+    query = (
+        "SELECT * FROM practice_questions WHERE analysis_result_id = ?"
+    )
+    params = [analysis_result_id]
+    if user_id is not None:
+        query += " AND user_id = ?"
+        params.append(user_id)
+    query += " ORDER BY CASE difficulty WHEN 'basic' THEN 1 WHEN 'intermediate' THEN 2 WHEN 'advanced' THEN 3 END"
+    return db.execute(query, params).fetchall()
 
 
 def update_practice(practice_id, **fields):

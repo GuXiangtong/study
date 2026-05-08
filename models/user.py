@@ -1,3 +1,4 @@
+import os
 from database import get_db
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -64,11 +65,17 @@ def update_password(user_id, new_password, must_change=False):
 
 
 def delete_user(user_id):
+    import shutil
+    from config import DATA_DIR, ANALYSIS_DIR
+
     db = get_db()
-    # Cascade order: analysis_results → (practice_questions, analysis_chats) via FK
-    # then exams → (questions → sub_questions) via FK
     db.execute("DELETE FROM analysis_results WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM exams WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM settings WHERE user_id = ?", (user_id,))
     db.execute("DELETE FROM users WHERE id = ?", (user_id,))
     db.commit()
+
+    for base_dir in (DATA_DIR, ANALYSIS_DIR):
+        user_dir = os.path.join(base_dir, str(user_id))
+        if os.path.isdir(user_dir):
+            shutil.rmtree(user_dir, ignore_errors=True)

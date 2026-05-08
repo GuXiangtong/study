@@ -52,7 +52,7 @@ def delete_analysis_route(analysis_id):
 
     file_path = delete_analysis(analysis_id, user_id=user_id)
     if file_path:
-        full_path = os.path.join(ANALYSIS_DIR, file_path)
+        full_path = os.path.join(ANALYSIS_DIR, str(user_id), file_path)
         if os.path.exists(full_path):
             os.remove(full_path)
 
@@ -73,7 +73,7 @@ def view_analysis(analysis_id):
 
     from models.practice import get_practices_by_analysis
     from models.settings import get_analysis_method
-    practices = get_practices_by_analysis(analysis_id)
+    practices = get_practices_by_analysis(analysis_id, user_id=user_id)
 
     _MODE_LABELS = {
         'deepseek':    'DeepSeek',

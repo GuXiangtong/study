@@ -1,0 +1,10 @@
+pytest>=7.0
+
+# Web dependencies needed to import the Flask app during tests.
+# Heavy ML packages (paddlepaddle, paddleocr, volcengine-python-sdk) are
+# excluded because they are only used inside functions and never imported
+# at module level, so tests run fine without them.
+flask>=3.0
+requests>=2.31
+Pillow>=10.0.0
+pymupdf>=1.24.0

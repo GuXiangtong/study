@@ -590,7 +590,7 @@ class AnalysisService:
         exam = question.get('exam_name', '')
         today = date.today().isoformat()
         filename = f"{today}_{exam}_第{question['question_number']}题.md"
-        dir_path = os.path.join(ANALYSIS_DIR, subject)
+        dir_path = os.path.join(ANALYSIS_DIR, str(self.user_id), subject)
         os.makedirs(dir_path, exist_ok=True)
         file_path = os.path.join(dir_path, filename)
 

@@ -55,7 +55,7 @@ def upload():
 
     task_id = str(uuid.uuid4())
     try:
-        result = prepare_paper(file, task_id)
+        result = prepare_paper(file, task_id, user_id=user_id)
     except Exception as e:
         flash(f'试卷处理失败：{e}', 'error')
         return redirect(url_for('paper.upload'))
@@ -70,9 +70,13 @@ def upload():
 @paper_bp.route('/paper/review/<task_id>')
 @login_required
 def review(task_id):
+    user_id = session['user_id']
     result = load_result(task_id)
     if not result:
         flash('处理任务不存在或已过期', 'error')
+        return redirect(url_for('paper.upload'))
+    if result.get('user_id') is not None and result.get('user_id') != user_id:
+        flash('无权访问此任务', 'error')
         return redirect(url_for('paper.upload'))
 
     subjects = get_all_subjects()
@@ -98,6 +102,8 @@ def recognize(task_id):
         return jsonify({'error': '任务不存在或已过期'}), 404
 
     user_id = session['user_id']
+    if result.get('user_id') is not None and result.get('user_id') != user_id:
+        return jsonify({'error': '无权访问此任务'}), 403
     data = request.get_json()
     if not data or 'questions' not in data:
         return jsonify({'error': '无效请求'}), 400
@@ -121,6 +127,9 @@ def confirm(task_id):
     result = load_result(task_id)
     if not result:
         flash('处理任务不存在或已过期', 'error')
+        return redirect(url_for('paper.upload'))
+    if result.get('user_id') is not None and result.get('user_id') != user_id:
+        flash('无权访问此任务', 'error')
         return redirect(url_for('paper.upload'))
 
     questions_json = request.form.get('questions_json', '[]')
@@ -174,7 +183,7 @@ def confirm(task_id):
 
         image_path = None
         if img_path and os.path.isfile(img_path):
-            dest_dir = os.path.join(DATA_DIR, subject_name, exam_name)
+            dest_dir = os.path.join(DATA_DIR, str(user_id), subject_name, exam_name)
             os.makedirs(dest_dir, exist_ok=True)
             dest_file = f'{q_num}.png'
             shutil.copy(img_path, os.path.join(dest_dir, dest_file))
@@ -190,12 +199,30 @@ def confirm(task_id):
 
 
 @paper_bp.route('/paper/temp/<task_id>/<subdir>/<filename>')
+@login_required
 def serve_temp(task_id, subdir, filename):
+    result = load_result(task_id)
+    if not result:
+        from flask import abort
+        abort(404)
+    user_id = session['user_id']
+    if result.get('user_id') is not None and result.get('user_id') != user_id:
+        from flask import abort
+        abort(403)
     dir_path = os.path.join(PAPER_TEMP_DIR, task_id, subdir)
     return send_from_directory(dir_path, filename)
 
 
 @paper_bp.route('/paper/temp/<task_id>/pages/<filename>')
+@login_required
 def serve_page_image(task_id, filename):
+    result = load_result(task_id)
+    if not result:
+        from flask import abort
+        abort(404)
+    user_id = session['user_id']
+    if result.get('user_id') is not None and result.get('user_id') != user_id:
+        from flask import abort
+        abort(403)
     dir_path = os.path.join(PAPER_TEMP_DIR, task_id, 'pages')
     return send_from_directory(dir_path, filename)

@@ -44,7 +44,7 @@ def delete(exam_id):
     # Delete image files from disk first
     subject = next((s for s in get_all_subjects() if s['id'] == exam['subject_id']), None)
     if subject:
-        exam_dir = os.path.join(DATA_DIR, subject['name'], exam['name'])
+        exam_dir = os.path.join(DATA_DIR, str(user_id), subject['name'], exam['name'])
         if os.path.isdir(exam_dir):
             shutil.rmtree(exam_dir)
 

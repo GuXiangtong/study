@@ -1089,7 +1089,7 @@ def process_paper(file, task_id, user_id=None):
     return result_data
 
 
-def prepare_paper(file, task_id):
+def prepare_paper(file, task_id, user_id=None):
     """Save uploaded file and render page images. No OCR or question detection.
 
     This is the entry point for the manual-selection workflow. After calling this,
@@ -1117,6 +1117,7 @@ def prepare_paper(file, task_id):
 
     result_data = {
         'task_id': task_id,
+        'user_id': user_id,
         'original_filename': file.filename,
         'page_count': len(page_images),
         'page_image_names': page_image_names,

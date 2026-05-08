@@ -1,5 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import os
 
 from flask import Flask, render_template, send_from_directory, session, g
 from config import SECRET_KEY, BASE_DIR, DATA_DIR, SUBJECTS
@@ -60,8 +61,18 @@ def index():
 @app.route('/images/<subject>/<exam>/<filename>')
 @login_required
 def serve_image(subject, exam, filename):
-    import os
-    dir_path = os.path.join(DATA_DIR, subject, exam)
+    user_id = session['user_id']
+    from database import get_db
+    db = get_db()
+    row = db.execute(
+        "SELECT e.id FROM exams e JOIN subjects s ON e.subject_id = s.id "
+        "WHERE s.name = ? AND e.name = ? AND e.user_id = ?",
+        (subject, exam, user_id)
+    ).fetchone()
+    if not row:
+        from flask import abort
+        abort(403)
+    dir_path = os.path.join(DATA_DIR, str(user_id), subject, exam)
     return send_from_directory(dir_path, filename)
 
 

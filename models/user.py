@@ -65,16 +65,44 @@ def update_password(user_id, new_password, must_change=False):
 
 
 def delete_user(user_id):
+    """Delete a user and ALL associated data (database records + files).
+
+    Deletion order respects foreign key constraints:
+    analysis_chats -> practice_questions -> analysis_results ->
+    sub_questions -> questions -> exams -> settings -> users
+    """
     import shutil
     from config import DATA_DIR, ANALYSIS_DIR
 
     db = get_db()
+
+    # Delete analysis chats (has user_id column)
+    db.execute("DELETE FROM analysis_chats WHERE user_id = ?", (user_id,))
+
+    # Delete practice questions (has user_id column)
+    db.execute("DELETE FROM practice_questions WHERE user_id = ?", (user_id,))
+
+    # Delete analysis results
     db.execute("DELETE FROM analysis_results WHERE user_id = ?", (user_id,))
+
+    # Delete sub_questions (has user_id column)
+    db.execute("DELETE FROM sub_questions WHERE user_id = ?", (user_id,))
+
+    # Delete questions
+    db.execute("DELETE FROM questions WHERE user_id = ?", (user_id,))
+
+    # Delete exams
     db.execute("DELETE FROM exams WHERE user_id = ?", (user_id,))
+
+    # Delete user settings
     db.execute("DELETE FROM settings WHERE user_id = ?", (user_id,))
+
+    # Delete the user record itself
     db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
     db.commit()
 
+    # Remove user file directories (题目图片 and 错题分析)
     for base_dir in (DATA_DIR, ANALYSIS_DIR):
         user_dir = os.path.join(base_dir, str(user_id))
         if os.path.isdir(user_dir):

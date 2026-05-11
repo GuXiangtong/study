@@ -4,7 +4,7 @@ import re
 import requests
 from datetime import date
 from utils.http_client import make_api_session
-from config import (ANALYSIS_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
+from config import (ANALYSIS_DIR, LOG_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
                     ANTHROPIC_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
                     DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
                     DOUBAO_MODEL, MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL)
@@ -14,6 +14,12 @@ from models.analysis import create_analysis
 from models.settings import get_subject_prompts
 
 _PROMPT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'prompts')
+_LOG_PATH = os.path.join(LOG_DIR, 'llm_debug.log')
+
+
+def _ensure_log_dir():
+    """Ensure the log directory exists."""
+    os.makedirs(LOG_DIR, exist_ok=True)
 
 
 def _load_system_prompt():
@@ -91,12 +97,16 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
     - DeepSeek Anthropic-compatible API (/anthropic/v1/messages)
     - OpenAI-compatible APIs, e.g. Doubao (/chat/completions with Bearer token)
     """
-    import datetime, os
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+    import datetime
+
+    _ensure_log_dir()
 
     def log(msg):
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+        try:
+            with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+        except OSError:
+            pass
 
     log(f"Calling {api_url} model={model}")
     log(f"System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
@@ -191,12 +201,16 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
 
 def _call_llm_chat(system_prompt, messages, api_key, api_url, model):
     """Call an LLM API with a multi-turn conversation and return plain text."""
-    import datetime, os
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+    import datetime
+
+    _ensure_log_dir()
 
     def log(msg):
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(f"[{datetime.datetime.now().isoformat()}] [chat] {msg}\n")
+        try:
+            with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now().isoformat()}] [chat] {msg}\n")
+        except OSError:
+            pass
 
     from config import ANTHROPIC_API_URL, KIMI_API_URL
     is_openai_compat = '/chat/completions' in api_url
@@ -308,11 +322,14 @@ def _safe_json_parse(text):
         return json.loads(fixed)
     except json.JSONDecodeError as e:
         import datetime
-        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+        _ensure_log_dir()
         pos = e.pos or 0
         snippet = fixed[max(0, pos - 50):pos + 50]
-        with open(log_path, 'a', encoding='utf-8') as f:
-            f.write(f"[{datetime.datetime.now().isoformat()}] JSON PARSE FAIL at pos {pos}: ...{repr(snippet)}...\n")
+        try:
+            with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now().isoformat()}] JSON PARSE FAIL at pos {pos}: ...{repr(snippet)}...\n")
+        except OSError:
+            pass
         raise
 
 
@@ -420,13 +437,16 @@ class AnalysisService:
             try:
                 step1, step2, step3, step4 = self._run_llm_analysis(question, sub_questions)
             except Exception as e:
-                import traceback, os, datetime
+                import traceback, datetime
                 tb = traceback.format_exc()
                 llm_error = f"{type(e).__name__}: {e}"
                 # Write debug log to file since Flask reloader eats stdout
-                log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
-                with open(log_path, 'a', encoding='utf-8') as f:
-                    f.write(f"[{datetime.datetime.now().isoformat()}] LLM ERROR: {llm_error}\n{tb}\n")
+                _ensure_log_dir()
+                try:
+                    with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+                        f.write(f"[{datetime.datetime.now().isoformat()}] LLM ERROR: {llm_error}\n{tb}\n")
+                except OSError:
+                    pass
                 step1 = self._step1_template(question, sub_questions)
                 step2 = self._step2_template(question, sub_questions, step1)
                 step3 = self._step3_template(question, sub_questions, step1, step2)
@@ -442,12 +462,16 @@ class AnalysisService:
         return result
 
     def _run_llm_analysis(self, question, sub_questions):
-        import datetime, os
-        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '_tmp', 'llm_debug.log')
+        import datetime
+
+        _ensure_log_dir()
 
         def log(msg):
-            with open(log_path, 'a', encoding='utf-8') as f:
-                f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+            try:
+                with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+                    f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\n")
+            except OSError:
+                pass
 
         log("_run_llm_analysis START")
 

@@ -16,6 +16,7 @@ UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 PAPER_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png'}
 MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32 MB
 PAPER_TEMP_DIR = os.path.join(DATA_DIR, '_tmp', 'papers')
+LOG_DIR = os.path.join(DATA_DIR, '_tmp')
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'study-app-dev-key-gaokao')
 

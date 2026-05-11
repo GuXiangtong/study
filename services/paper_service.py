@@ -486,27 +486,46 @@ def _recognize_single_question_ocr(image_path, user_id=None):
 # ── PaddleOCR lazy singleton ────────────────────────────────────────
 _paddle_ocr = None
 _paddle_formula = None
+_paddle_ocr_version = None  # 'v3' or 'legacy'
 
 
 def _get_paddle_ocr():
     """Return a cached PaddleOCR instance (text detection + recognition).
 
-    Disables unnecessary preprocessing models for speed.
-    Uses PP-OCRv5_mobile (faster, lighter) instead of server models.
-    Models are loaded once and reused across requests.
+    Supports both PaddleOCR v3.x (>=3.5.0, uses predict()) and legacy v2.x
+    (uses ocr()). Detects the version at import time.
     """
-    global _paddle_ocr
+    global _paddle_ocr, _paddle_ocr_version
     if _paddle_ocr is None:
         import warnings
         warnings.filterwarnings('ignore')
-        from paddleocr import PaddleOCR
-        _paddle_ocr = PaddleOCR(
-            lang='ch',
-            ocr_version='PP-OCRv4',
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-        )
+        import paddleocr as _pocr_module
+
+        # Detect PaddleOCR version
+        _pocr_version_str = getattr(_pocr_module, '__version__', '0.0.0')
+        major_ver = int(_pocr_version_str.split('.')[0]) if _pocr_version_str else 0
+
+        if major_ver >= 3:
+            # PaddleOCR v3.x API: use PaddleOCR class with predict() method
+            _paddle_ocr_version = 'v3'
+            from paddleocr import PaddleOCR
+            _paddle_ocr = PaddleOCR(
+                ocr_version='PP-OCRv5',
+                text_detection_model_name='PP-OCRv5_mobile_det',
+                text_recognition_model_name='PP-OCRv5_mobile_rec',
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=False,
+            )
+        else:
+            # Legacy PaddleOCR v2.x API
+            _paddle_ocr_version = 'legacy'
+            from paddleocr import PaddleOCR
+            _paddle_ocr = PaddleOCR(
+                lang='ch',
+                use_angle_cls=False,
+                show_log=False,
+            )
     return _paddle_ocr
 
 
@@ -526,53 +545,93 @@ def _extract_image_text(image_path):
 
     Returns list of dicts: {page: 0, y0, y1, text, page_height}
     Each dict represents a detected text line with its bounding box.
+    Supports both PaddleOCR v3.x (predict API) and legacy v2.x (ocr API).
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         ocr = _get_paddle_ocr()
-    except Exception:
+    except Exception as e:
+        logger.error(f'PaddleOCR initialization failed: {e}')
         return None
 
     try:
-        result = ocr.ocr(image_path)
-        if not result:
-            return None
-
-        page = result[0]
         img = Image.open(image_path)
         _, h = img.size
 
-        blocks = []
-        # PaddleOCR v3 returns OCRResult (dict-like) with rec_polys + rec_texts
-        if hasattr(page, 'keys'):
-            polys = page.get('rec_polys', []) or []
-            texts = page.get('rec_texts', []) or []
-            scores = page.get('rec_scores', []) or []
+        if _paddle_ocr_version == 'v3':
+            # PaddleOCR v3.x: use predict() method
+            result = ocr.predict(image_path)
+            if not result:
+                logger.warning(f'PaddleOCR predict returned empty result for {image_path}')
+                return None
+
+            blocks = []
+            # result is a generator or list of OCRResult objects
+            for page_result in result:
+                # Each page_result has 'rec_polys', 'rec_texts', 'rec_scores'
+                # or can be accessed via attributes
+                if hasattr(page_result, 'rec_polys'):
+                    polys = page_result.rec_polys or []
+                    texts = page_result.rec_texts or []
+                elif isinstance(page_result, dict):
+                    polys = page_result.get('rec_polys', []) or []
+                    texts = page_result.get('rec_texts', []) or []
+                else:
+                    logger.warning(f'Unexpected PaddleOCR v3 result type: {type(page_result)}')
+                    continue
+
+                for poly, text in zip(polys, texts):
+                    text_str = (text[0] if isinstance(text, (tuple, list)) else text)
+                    if isinstance(text_str, str):
+                        text_str = text_str.strip()
+                    else:
+                        text_str = str(text_str).strip()
+                    if text_str:
+                        y0 = min(p[1] for p in poly)
+                        y1 = max(p[1] for p in poly)
+                        blocks.append({
+                            'page': 0,
+                            'y0': y0,
+                            'y1': y1,
+                            'text': text_str,
+                            'page_height': h,
+                        })
+
+            blocks.sort(key=lambda b: b['y0'])
+            return blocks if blocks else None
         else:
-            # Legacy list-of-lists format
-            polys, texts, scores = [], [], []
+            # Legacy PaddleOCR v2.x: use ocr() method
+            result = ocr.ocr(image_path)
+            if not result:
+                logger.warning(f'PaddleOCR ocr returned empty result for {image_path}')
+                return None
+
+            page = result[0]
+            if page is None:
+                return None
+
+            blocks = []
             for line in page:
-                if len(line) == 2:
+                if line and len(line) == 2:
                     poly, (text, score) = line[0], line[1]
-                    polys.append(poly)
-                    texts.append(text)
-                    scores.append(score)
+                    text = text.strip() if isinstance(text, str) else str(text).strip()
+                    if text:
+                        y0 = min(p[1] for p in poly)
+                        y1 = max(p[1] for p in poly)
+                        blocks.append({
+                            'page': 0,
+                            'y0': y0,
+                            'y1': y1,
+                            'text': text,
+                            'page_height': h,
+                        })
 
-        for poly, text in zip(polys, texts):
-            text = (text[0] if isinstance(text, tuple) else text).strip()
-            if text:
-                y0 = min(p[1] for p in poly)
-                y1 = max(p[1] for p in poly)
-                blocks.append({
-                    'page': 0,
-                    'y0': y0,
-                    'y1': y1,
-                    'text': text,
-                    'page_height': h,
-                })
-
-        blocks.sort(key=lambda b: b['y0'])
-        return blocks if blocks else None
-    except Exception:
+            blocks.sort(key=lambda b: b['y0'])
+            return blocks if blocks else None
+    except Exception as e:
+        logger.error(f'PaddleOCR text extraction failed for {image_path}: {e}')
         return None
 
 

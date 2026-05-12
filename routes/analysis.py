@@ -2,7 +2,7 @@ import json
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from utils.decorators import login_required
-from models.question import get_question
+from models.question import get_question, update_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import get_analysis, delete_analysis
 from models.analysis_chat import get_chats, add_chat_messages
@@ -22,6 +22,10 @@ def run_analysis(question_id):
         return redirect(request.referrer or url_for('questions.list_questions'))
 
     try:
+        student_answer = request.form.get('student_answer', '').strip() or None
+        error_reason = request.form.get('error_reason', '').strip() or None
+        update_question(question_id, student_answer=student_answer, error_reason=error_reason)
+
         service = AnalysisService(user_id=user_id)
         result = service.run_full_analysis(question_id)
         if result.get('llm_error'):

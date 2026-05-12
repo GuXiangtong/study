@@ -2,7 +2,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from models.user import list_all_users, create_user, delete_user, update_password, count_admins, get_user_by_id
 from models.settings import (RECOGNITION_METHODS, ANALYSIS_METHODS,
                              get_enabled_recognition_methods, set_enabled_recognition_methods,
-                             get_enabled_analysis_methods, set_enabled_analysis_methods)
+                             get_enabled_analysis_methods, set_enabled_analysis_methods,
+                             get_setting, set_setting)
 from utils.decorators import admin_required
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -92,14 +93,19 @@ def models_config():
         set_enabled_recognition_methods(recognition_keys)
         set_enabled_analysis_methods(analysis_keys)
 
+        global_system_prompt = request.form.get('global_system_prompt', '').strip()
+        set_setting('system_prompt', global_system_prompt, user_id=0)
+
         flash('模型配置已保存', 'success')
         return redirect(url_for('admin.models_config'))
 
     enabled_recognition = get_enabled_recognition_methods()
     enabled_analysis = get_enabled_analysis_methods()
+    global_system_prompt = get_setting('system_prompt', '', user_id=0)
 
     return render_template('admin/models.html',
                            recognition_methods=RECOGNITION_METHODS,
                            analysis_methods=ANALYSIS_METHODS,
                            enabled_recognition=enabled_recognition,
-                           enabled_analysis=enabled_analysis)
+                           enabled_analysis=enabled_analysis,
+                           global_system_prompt=global_system_prompt)

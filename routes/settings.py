@@ -3,7 +3,7 @@ import os
 from flask import Blueprint, flash, redirect, render_template, request, url_for, session
 from utils.decorators import login_required
 from models.settings import (get_available_recognition_methods, get_available_analysis_methods,
-                             get_all_settings, set_setting,
+                             get_all_settings, set_setting, get_setting,
                              get_subject_prompts, set_subject_prompts,
                              fix_user_model_settings)
 from models.subject import get_all_subjects
@@ -11,7 +11,10 @@ from config import BASE_DIR
 
 
 def _read_default_system_prompt():
-    """Read the default system prompt from file, bypassing module cache."""
+    """Return admin's global system prompt, falling back to the file default."""
+    admin_prompt = get_setting('system_prompt', '', user_id=0)
+    if admin_prompt:
+        return admin_prompt
     path = os.path.join(BASE_DIR, 'prompts', 'system_prompt.txt')
     if os.path.exists(path):
         with open(path, 'r', encoding='utf-8') as f:

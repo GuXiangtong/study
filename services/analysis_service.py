@@ -485,9 +485,11 @@ class AnalysisService:
         api_key, api_url, model = self._get_llm_config()
         log(f"Config: api_url={api_url}, model={model}, key_ok={bool(api_key)}")
 
-        # Use custom system prompt if configured, otherwise default
+        # Use custom system prompt if configured, otherwise admin global, otherwise file default
         from models.settings import get_setting
         custom_sys = get_setting('system_prompt', '', user_id=self.user_id)
+        if not custom_sys:
+            custom_sys = get_setting('system_prompt', '', user_id=0)
         system_prompt = custom_sys if custom_sys else SYSTEM_PROMPT
         log(f"System prompt length: {len(system_prompt)}, from_custom: {bool(custom_sys)}")
 

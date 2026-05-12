@@ -56,6 +56,18 @@
         </p>
     </div>
 
+    <div class="card" style="margin-bottom:24px;">
+        <h2>全局系统提示词</h2>
+        <p class="form-hint" style="margin-bottom:12px;">
+            作为所有用户的默认系统提示词。用户可在「设置」页面覆盖为自己的自定义提示词；若用户未设置，则使用此处的全局提示词。留空则回退到内置默认提示词。
+        </p>
+        <div class="form-group">
+            <textarea name="global_system_prompt" rows="16"
+                      class="subject-prompt-input"
+                      placeholder="留空则使用内置默认提示词">{{ global_system_prompt }}</textarea>
+        </div>
+    </div>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">保存配置</button>
         <a href="{{ url_for('admin.users') }}" class="btn btn-secondary">返回用户管理</a>

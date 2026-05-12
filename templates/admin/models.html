@@ -4,68 +4,91 @@
 {% block content %}
 <div class="page-header">
     <h1>模型管理</h1>
-    <p>配置系统中可用的大模型。禁用某个模型后，所有用户将无法选择该模型。</p>
+    <p>配置系统中可用的大模型及全局提示词。</p>
 </div>
 
 <form method="POST">
-    <div class="card" style="margin-bottom:24px;">
-        <h2>题目识别</h2>
-        <p class="form-hint" style="margin-bottom:12px;">
-            控制用户在「设置」页面中可选的题目识别方式。至少需要启用一个。
-        </p>
-        {% for key, label in recognition_methods.items() %}
-        <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
-            <input type="checkbox" name="recognition_methods" value="{{ key }}"
-                   {% if key in enabled_recognition %}checked{% endif %}>
-            <div>
-                <strong>{{ label }}</strong>
-                {% if key in enabled_recognition %}
-                <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
-                {% else %}
-                <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
-                {% endif %}
-            </div>
-        </label>
-        {% endfor %}
+    <div class="tabs">
+        <button type="button" class="tab-nav active" data-tab="tab-models">模型选择</button>
+        <button type="button" class="tab-nav" data-tab="tab-system">系统提示词</button>
+        <button type="button" class="tab-nav" data-tab="tab-subject">学科个性化提示词</button>
     </div>
 
-    <div class="card" style="margin-bottom:24px;">
-        <h2>题目分析</h2>
-        <p class="form-hint" style="margin-bottom:12px;">
-            控制用户在「设置」页面中可选的题目分析 AI 模型。至少需要启用一个。
-        </p>
-        {% for key, label in analysis_methods.items() %}
-        <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
-            <input type="checkbox" name="analysis_methods" value="{{ key }}"
-                   {% if key in enabled_analysis %}checked{% endif %}>
-            <div>
-                <strong>{{ label }}</strong>
-                {% if key in enabled_analysis %}
-                <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
-                {% else %}
-                <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
-                {% endif %}
-            </div>
-        </label>
-        {% endfor %}
+    <!-- Tab 1: 模型选择 -->
+    <div class="tab-panel active" id="tab-models">
+        <div class="card" style="margin-bottom:24px;">
+            <h2>题目识别</h2>
+            <p class="form-hint" style="margin-bottom:12px;">
+                控制用户在「设置」页面中可选的题目识别方式。至少需要启用一个。
+            </p>
+            {% for key, label in recognition_methods.items() %}
+            <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" name="recognition_methods" value="{{ key }}"
+                       {% if key in enabled_recognition %}checked{% endif %}>
+                <div>
+                    <strong>{{ label }}</strong>
+                    {% if key in enabled_recognition %}
+                    <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
+                    {% else %}
+                    <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="card" style="margin-bottom:24px;">
+            <h2>题目分析</h2>
+            <p class="form-hint" style="margin-bottom:12px;">
+                控制用户在「设置」页面中可选的题目分析 AI 模型。至少需要启用一个。
+            </p>
+            {% for key, label in analysis_methods.items() %}
+            <label class="checkbox-card" style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;">
+                <input type="checkbox" name="analysis_methods" value="{{ key }}"
+                       {% if key in enabled_analysis %}checked{% endif %}>
+                <div>
+                    <strong>{{ label }}</strong>
+                    {% if key in enabled_analysis %}
+                    <span class="badge" style="background:#f0fdf4;color:#166534;margin-left:8px;">已启用</span>
+                    {% else %}
+                    <span class="badge" style="background:#fef2f2;color:#991b1b;margin-left:8px;">已禁用</span>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="card" style="background:#fffbeb;border-color:#fbbf24;margin-bottom:24px;">
+            <p style="margin:0;color:#92400e;font-size:0.9em;">
+                ⚠️ <strong>注意：</strong>如果禁用了某个模型，已选择该模型的用户在下次登录时会自动切换到第一个可用模型。
+            </p>
+        </div>
     </div>
 
-    <div class="card" style="background:#fffbeb;border-color:#fbbf24;margin-bottom:24px;">
-        <p style="margin:0;color:#92400e;font-size:0.9em;">
-            ⚠️ <strong>注意：</strong>如果禁用了某个模型，已选择该模型的用户在下次登录时会自动切换到第一个可用模型。
-        </p>
-    </div>
-
-    <div class="card" style="margin-bottom:24px;">
-        <h2>全局系统提示词</h2>
-        <p class="form-hint" style="margin-bottom:12px;">
-            作为所有用户的默认系统提示词。用户可在「设置」页面覆盖为自己的自定义提示词；若用户未设置，则使用此处的全局提示词。留空则回退到内置默认提示词。
-        </p>
-        <div class="form-group">
-            <textarea name="global_system_prompt" rows="16"
+    <!-- Tab 2: 系统提示词 -->
+    <div class="tab-panel" id="tab-system">
+        <div class="card">
+            <p class="form-hint" style="margin-bottom:12px;">
+                作为所有用户的默认系统提示词。用户可在「设置」页面覆盖为自己的自定义提示词；若用户未设置，则使用此处的全局提示词。留空则回退到内置默认提示词。
+            </p>
+            <textarea name="global_system_prompt" rows="24"
                       class="subject-prompt-input"
                       placeholder="留空则使用内置默认提示词">{{ global_system_prompt }}</textarea>
         </div>
+    </div>
+
+    <!-- Tab 3: 学科个性化提示词 -->
+    <div class="tab-panel" id="tab-subject">
+        <p class="form-hint" style="margin-bottom:16px;">
+            为各学科设置默认个性化要求。用户在「设置」中未填写某学科时，自动使用此处的默认值。留空表示该学科无默认提示词。
+        </p>
+        {% for subject in subjects %}
+        <div class="card" style="margin-bottom:16px;">
+            <h2>{{ subject.name }}</h2>
+            <textarea name="admin_prompt_{{ subject.name }}" class="subject-prompt-input" rows="4"
+                      placeholder="留空表示该学科无默认提示词">{{ admin_subject_prompts.get(subject.name, '') }}</textarea>
+        </div>
+        {% endfor %}
     </div>
 
     <div class="form-actions">
@@ -78,11 +101,23 @@
 {% block scripts %}
 <script>
 (function() {
-    // Prevent form submission if no checkbox is checked in a section
+    var tabs = document.querySelectorAll('.tab-nav');
+    var panels = document.querySelectorAll('.tab-panel');
+
+    tabs.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var targetId = this.getAttribute('data-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            panels.forEach(function(p) { p.classList.remove('active'); });
+            this.classList.add('active');
+            var target = document.getElementById(targetId);
+            if (target) target.classList.add('active');
+        });
+    });
+
     document.querySelector('form').addEventListener('submit', function(e) {
         var recChecked = document.querySelectorAll('input[name="recognition_methods"]:checked');
         var anaChecked = document.querySelectorAll('input[name="analysis_methods"]:checked');
-        
         if (recChecked.length === 0) {
             e.preventDefault();
             alert('题目识别至少需要启用一个模型');

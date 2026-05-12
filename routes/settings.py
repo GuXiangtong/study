@@ -65,10 +65,12 @@ def index():
     current = get_all_settings(user_id=user_id)
     subjects = get_all_subjects()
     subject_prompts = get_subject_prompts(user_id=user_id)
+    admin_subject_prompts = get_subject_prompts(user_id=0)
     return render_template('settings/index.html',
                            recognition_methods=recognition_methods,
                            analysis_methods=analysis_methods,
                            current=current,
                            subjects=subjects,
                            subject_prompts=subject_prompts,
+                           admin_subject_prompts=admin_subject_prompts,
                            default_system_prompt=_read_default_system_prompt())

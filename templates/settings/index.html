@@ -57,7 +57,7 @@
         <div class="card">
             <h2>{{ subject.name }}</h2>
             <textarea name="prompt_{{ subject.name }}" class="subject-prompt-input"
-                      placeholder="例如：重点关注函数与导数综合题的解题思路；强调数形结合方法；提醒检查计算细节..."
+                      placeholder="{{ '（管理员已设置默认提示词，留空即自动使用）' if admin_subject_prompts.get(subject.name) else '例如：重点关注函数与导数综合题的解题思路；强调数形结合方法；提醒检查计算细节...' }}"
                       rows="4">{{ subject_prompts.get(subject.name, '') }}</textarea>
         </div>
         {% endfor %}

@@ -68,7 +68,7 @@
       {"name": "切入点", "guidance": "一句话点明从哪里入手"},
       {"name": "易错提醒", "guidance": "这类题最常见的1-2个错误"}
     ],
-    "correct_answer": "每道子问题的正确答案",
+    "correct_answer": "题目的正确答案",
     "solution_steps": "完整解题步骤（关键推导和中间结果）"
   },
   "step4": {

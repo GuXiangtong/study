@@ -493,11 +493,14 @@ class AnalysisService:
         system_prompt = custom_sys if custom_sys else SYSTEM_PROMPT
         log(f"System prompt length: {len(system_prompt)}, from_custom: {bool(custom_sys)}")
 
-        # Inject subject-specific custom prompt
+        # Inject subject-specific custom prompt (user → admin global fallback)
         subject_name = question.get('subject_name', '')
         if subject_name:
             subject_prompts = get_subject_prompts(user_id=self.user_id)
             custom = subject_prompts.get(subject_name, '')
+            if not custom:
+                admin_subject_prompts = get_subject_prompts(user_id=0)
+                custom = admin_subject_prompts.get(subject_name, '')
             if custom:
                 system_prompt += f"\n\n## 用户对{subject_name}学科的个性化要求\n{custom}"
                 log(f"Added subject custom prompt, total system length: {len(system_prompt)}")

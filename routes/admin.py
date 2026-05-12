@@ -3,7 +3,9 @@ from models.user import list_all_users, create_user, delete_user, update_passwor
 from models.settings import (RECOGNITION_METHODS, ANALYSIS_METHODS,
                              get_enabled_recognition_methods, set_enabled_recognition_methods,
                              get_enabled_analysis_methods, set_enabled_analysis_methods,
-                             get_setting, set_setting)
+                             get_setting, set_setting,
+                             get_subject_prompts, set_subject_prompts)
+from models.subject import get_all_subjects
 from utils.decorators import admin_required
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -96,16 +98,28 @@ def models_config():
         global_system_prompt = request.form.get('global_system_prompt', '').strip()
         set_setting('system_prompt', global_system_prompt, user_id=0)
 
+        subjects = get_all_subjects()
+        admin_subject_prompts = {}
+        for s in subjects:
+            prompt = request.form.get(f'admin_prompt_{s["name"]}', '').strip()
+            if prompt:
+                admin_subject_prompts[s['name']] = prompt
+        set_subject_prompts(admin_subject_prompts, user_id=0)
+
         flash('模型配置已保存', 'success')
         return redirect(url_for('admin.models_config'))
 
     enabled_recognition = get_enabled_recognition_methods()
     enabled_analysis = get_enabled_analysis_methods()
     global_system_prompt = get_setting('system_prompt', '', user_id=0)
+    subjects = get_all_subjects()
+    admin_subject_prompts = get_subject_prompts(user_id=0)
 
     return render_template('admin/models.html',
                            recognition_methods=RECOGNITION_METHODS,
                            analysis_methods=ANALYSIS_METHODS,
                            enabled_recognition=enabled_recognition,
                            enabled_analysis=enabled_analysis,
-                           global_system_prompt=global_system_prompt)
+                           global_system_prompt=global_system_prompt,
+                           subjects=subjects,
+                           admin_subject_prompts=admin_subject_prompts)

@@ -51,6 +51,28 @@ def get_analyses_by_question(question_id):
     ).fetchall()
 
 
+def get_tts_paths_by_question(question_id):
+    """Return relative tts_path strings for all analyses linked to a question."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT tts_path FROM analysis_results WHERE question_id = ? AND tts_path IS NOT NULL",
+        (question_id,)
+    ).fetchall()
+    return [r['tts_path'] for r in rows]
+
+
+def get_tts_paths_by_exam(exam_id):
+    """Return relative tts_path strings for all analyses in an exam."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT ar.tts_path FROM analysis_results ar "
+        "JOIN questions q ON ar.question_id = q.id "
+        "WHERE q.exam_id = ? AND ar.tts_path IS NOT NULL",
+        (exam_id,)
+    ).fetchall()
+    return [r['tts_path'] for r in rows]
+
+
 def delete_analysis(analysis_id, user_id=None):
     """Delete an analysis record and return its file_path for cleanup."""
     db = get_db()

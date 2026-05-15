@@ -46,7 +46,20 @@
 
         {% if step2 %}
         <div class="card">
-            <h2>{{ step2.title }}</h2>
+            <h2>{{ step2.title }}
+                <button id="tts-btn" class="btn btn-sm btn-secondary"
+                        onclick="playAnalysis({{ analysis.id }})"
+                        style="font-size:0.8rem;padding:4px 10px;margin-left:12px;vertical-align:middle;">
+                    ▶ 朗读
+                </button>
+                <button id="tts-regen-btn" class="btn btn-sm btn-secondary"
+                        onclick="regenerateAnalysis({{ analysis.id }})"
+                        style="font-size:0.8rem;padding:4px 10px;margin-left:6px;vertical-align:middle;">
+                    ↺ 重新生成
+                </button>
+                <span id="tts-status" style="font-size:0.8rem;color:#888;margin-left:8px;"></span>
+            </h2>
+            <audio id="tts-audio" style="display:none;width:100%;margin-top:8px;" controls></audio>
             <div class="analysis-section">
                 <div class="analysis-text">{{ step2.weakness_analysis }}</div>
             </div>
@@ -244,5 +257,71 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 MathJax.typesetPromise();
+
+function _loadAudio(url, method, analysisId) {
+    const btn = document.getElementById('tts-btn');
+    const regenBtn = document.getElementById('tts-regen-btn');
+    const status = document.getElementById('tts-status');
+    const audio = document.getElementById('tts-audio');
+
+    btn.disabled = true;
+    regenBtn.disabled = true;
+    btn.textContent = '生成中…';
+    status.textContent = '正在生成语音，请稍候（约 20-40 秒）…';
+
+    // Hide and reset the player while generating
+    audio.pause();
+    audio.src = '';
+    audio.style.display = 'none';
+
+    fetch(url, { method })
+        .then(resp => {
+            if (!resp.ok) {
+                return resp.json().then(d => { throw new Error(d.error || '请求失败'); });
+            }
+            return resp.blob();
+        })
+        .then(blob => {
+            if (audio.src) URL.revokeObjectURL(audio.src);
+            audio.src = URL.createObjectURL(blob);
+            audio.style.display = 'block';
+            audio.play();
+            btn.disabled = false;
+            regenBtn.disabled = false;
+            btn.textContent = '⏸ 暂停';
+            status.textContent = '';
+            audio.onended = () => { btn.textContent = '▶ 朗读'; };
+        })
+        .catch(err => {
+            btn.disabled = false;
+            regenBtn.disabled = false;
+            btn.textContent = '▶ 朗读';
+            status.textContent = '生成失败：' + err.message;
+        });
+}
+
+function playAnalysis(analysisId) {
+    const audio = document.getElementById('tts-audio');
+    const btn = document.getElementById('tts-btn');
+
+    // Already loaded — toggle play/pause
+    if (audio.src && audio.src !== window.location.href) {
+        if (audio.paused) {
+            audio.play();
+            btn.textContent = '⏸ 暂停';
+        } else {
+            audio.pause();
+            btn.textContent = '▶ 朗读';
+        }
+        return;
+    }
+
+    _loadAudio(`/analysis/${analysisId}/speak`, 'GET', analysisId);
+}
+
+function regenerateAnalysis(analysisId) {
+    if (!confirm('确认重新生成语音？原有语音将被覆盖。')) return;
+    _loadAudio(`/analysis/${analysisId}/speak/regenerate`, 'POST', analysisId);
+}
 </script>
 {% endblock %}

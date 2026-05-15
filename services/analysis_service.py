@@ -1,13 +1,24 @@
+import asyncio
 import json
 import os
 import re
 import requests
 from datetime import date
 from utils.http_client import make_api_session
-from config import (ANALYSIS_DIR, LOG_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
+from config import (ANALYSIS_DIR, DATA_DIR, LOG_DIR, ANTHROPIC_API_KEY, ANTHROPIC_API_URL,
                     ANTHROPIC_MODEL, DEEPSEEK_API_KEY, DEEPSEEK_API_URL,
                     DEEPSEEK_MODEL, DOUBAO_API_KEY, DOUBAO_API_URL,
                     DOUBAO_MODEL, MOONSHOT_API_KEY, KIMI_API_URL, KIMI_MODEL)
+
+TTS_DIR = os.path.join(DATA_DIR, 'tts')
+TTS_VOICE = 'zh-CN-XiaoxiaoNeural'
+
+_MODEL_LABEL_TO_MODE = {
+    'DeepSeek':          'deepseek',
+    'Kimi k2.6':         'kimi',
+    'Anthropic (Claude)':'anthropic',
+    'Doubao Seed':       'doubao_seed',
+}
 from models.question import get_question
 from models.sub_question import get_sub_questions_by_question
 from models.analysis import create_analysis
@@ -849,3 +860,201 @@ class AnalysisService:
 
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
+
+
+# ── TTS ────────────────────────────────────────────────────────────────────────
+
+_TTS_SCRIPT_SYSTEM = (
+    '你是一名经验丰富的上海高中老师，正在对学生进行一对一口头讲解。'
+    '你的任务是将下面的书面分析内容改写成自然流畅的口语讲解稿，要求：\n'
+    '1. 完全口语化，不要有任何 Markdown 符号（不要加粗标记、不要井号标题、不要列表符号）\n'
+    '2. 数学公式用口语表达，例如：x² 说成"x 的平方"，√3 说成"根号 3"，∈ 说成"属于"\n'
+    '3. 开头用自然的导入语，如"好，我们来看这道题的核心问题……"\n'
+    '4. 适当加入停顿提示词，如"注意"、"关键点在于"、"换句话说"，让讲解有节奏感\n'
+    '5. 长度控制在原文的 80%-100%，不要删减知识内容\n'
+    '6. 只输出口语稿纯文本，不要任何其他内容'
+)
+
+_TTS_ENGLISH_EXTRA = (
+    '\n\n本题学科为英语，额外要求：\n'
+    '1. 整体用中文讲解，引用原文英语句子、单词或短语时直接保留英语原文，不要用中文描述发音或添加注音\n'
+    '2. 解释语法或意思时用中文，示例句和引用保持英语原文，就像一位用中文授课的英语老师自然地切换语言\n'
+    '3. 不要把英语单词翻译成拼音或汉字读音描述'
+)
+
+_TTS_JAPANESE_EXTRA = (
+    '\n\n本题学科为日语，额外要求：\n'
+    '1. 整体用中文讲解，引用原文日语句子、单词或短语时直接保留日语原文（平假名、片假名、汉字均保留），不要注音\n'
+    '2. 解释语法或意思时用中文，示例句和引用保持日语原文，就像一位用中文授课的日语老师自然地切换语言\n'
+    '3. 所有日语原文片段必须用 [JA] 和 [/JA] 标签包裹，例如：[JA]食べてから宿題をします[/JA]\n'
+    '4. 中文讲解部分不加任何标签，只有日语原文加标签\n'
+    '5. 输出格式示例：好，我们来看这道题。[JA]食べてから[/JA]这里的てから表示先做某件事再做另一件事……'
+)
+
+
+def _build_tts_system_prompt(subject, user_id=None):
+    from models.settings import get_setting, get_subject_tts_prompts
+
+    # Global TTS system prompt: user → admin → code default
+    user_base = get_setting('tts_system_prompt', '', user_id=user_id) if user_id else ''
+    admin_base = get_setting('tts_system_prompt', '', user_id=0)
+    base = user_base or admin_base or _TTS_SCRIPT_SYSTEM
+
+    # Subject-specific TTS extra: user → admin → code default
+    extra = ''
+    if subject:
+        user_tts = get_subject_tts_prompts(user_id=user_id) if user_id else {}
+        extra = user_tts.get(subject, '')
+        if not extra:
+            admin_tts = get_subject_tts_prompts(user_id=0)
+            extra = admin_tts.get(subject, '')
+        if not extra:
+            if subject == '英语':
+                extra = _TTS_ENGLISH_EXTRA
+            elif subject == '日语':
+                extra = _TTS_JAPANESE_EXTRA
+
+    return base + extra if extra else base
+
+
+def _parse_ja_segments(script):
+    """Split script into (voice, text) tuples based on [JA]...[/JA] markers."""
+    parts = re.split(r'(\[JA\].*?\[/JA\])', script, flags=re.DOTALL)
+    segments = []
+    for part in parts:
+        if not part.strip():
+            continue
+        if part.startswith('[JA]') and part.endswith('[/JA]'):
+            text = part[4:-5].strip()
+            if text:
+                segments.append(['ja-JP-NanamiNeural', text])
+        else:
+            text = part.strip()
+            if not text:
+                continue
+            voice = 'ja-JP-NanamiNeural' if _has_japanese(text) else TTS_VOICE
+            # Punctuation-only segments (e.g. 「、」 between two [JA] blocks) cannot
+            # be synthesised by themselves.  Append them to the previous segment.
+            is_punct_only = not re.search(r'[\w぀-ヿ一-鿿]', text)
+            if is_punct_only and segments:
+                segments[-1][1] += text
+            else:
+                segments.append([voice, text])
+    return [(v, t) for v, t in segments]
+
+
+def _generate_tts_script(text, api_key, api_url, model, subject='', user_id=None):
+    system = _build_tts_system_prompt(subject, user_id=user_id)
+    messages = [{'role': 'user', 'content': f"请将以下分析内容改写为口语讲解稿：\n\n{text}"}]
+    return _call_llm_chat(system, messages, api_key, api_url, model)
+
+
+def _has_japanese(text):
+    """Return True if text contains hiragana or katakana characters."""
+    return any('぀' <= c <= 'ヿ' for c in text)
+
+
+async def _synthesize_mp3(script, output_path):
+    """Synthesize speech to output_path.
+
+    For scripts with [JA]...[/JA] markers, each segment is generated with
+    the appropriate voice and the raw MP3 bytes are concatenated.
+    """
+    import edge_tts, tempfile
+
+    segments = _parse_ja_segments(script)
+
+    # Fast path: no Japanese segments
+    if not any(voice == 'ja-JP-NanamiNeural' for voice, _ in segments):
+        clean = re.sub(r'\[/?JA\]', '', script)
+        # Fallback: if cleaned text still contains Japanese kana (LLM forgot to
+        # add [JA] tags), use Japanese voice rather than sending kana to the
+        # Chinese voice which would fail with "No audio was received".
+        voice = 'ja-JP-NanamiNeural' if _has_japanese(clean) else TTS_VOICE
+        await edge_tts.Communicate(clean, voice, rate='+0%').save(output_path)
+        return
+
+    # Segment path: generate each chunk and concatenate bytes
+    parts = []
+    tmp_files = []
+    try:
+        for voice, text in segments:
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as f:
+                tmp = f.name
+            tmp_files.append(tmp)
+            await edge_tts.Communicate(text, voice, rate='+0%').save(tmp)
+            with open(tmp, 'rb') as f:
+                parts.append(f.read())
+    finally:
+        for p in tmp_files:
+            try:
+                os.unlink(p)
+            except OSError:
+                pass
+
+    with open(output_path, 'wb') as f:
+        for chunk in parts:
+            f.write(chunk)
+
+
+def generate_tts_audio(analysis_id, user_id, force=False):
+    """Generate (or return cached) TTS audio for analysis step2.
+
+    force=True skips the cache and overwrites any existing file.
+    Returns the absolute path to the mp3 file, or raises on error.
+    """
+    from database import get_db
+
+    db = get_db()
+    row = db.execute(
+        "SELECT ar.tts_path, ar.step2_data, ar.model, s.name as subject_name "
+        "FROM analysis_results ar "
+        "LEFT JOIN questions q ON ar.question_id = q.id "
+        "LEFT JOIN exams e ON q.exam_id = e.id "
+        "LEFT JOIN subjects s ON e.subject_id = s.id "
+        "WHERE ar.id = ? AND ar.user_id = ?",
+        (analysis_id, user_id)
+    ).fetchone()
+    if not row:
+        raise ValueError("分析记录不存在或无权访问")
+
+    # Serve cached file unless force-regenerate was requested
+    if not force and row['tts_path']:
+        cached = os.path.join(DATA_DIR, row['tts_path'])
+        if os.path.exists(cached):
+            return cached
+
+    # Determine which LLM to use based on the model label stored at analysis time
+    mode = _MODEL_LABEL_TO_MODE.get(row['model'], 'deepseek')
+    service = AnalysisService(mode=mode, user_id=user_id)
+    api_key, api_url, model_id = service._get_llm_config()
+
+    # Extract step2 weakness_analysis text
+    try:
+        step2 = json.loads(row['step2_data'])
+        text = step2.get('weakness_analysis', '')
+    except (json.JSONDecodeError, TypeError):
+        text = ''
+    if not text:
+        raise ValueError("第二步分析内容为空，无法生成语音")
+
+    subject = row['subject_name'] or ''
+
+    # Rewrite to spoken script via LLM
+    script = _generate_tts_script(text, api_key, api_url, model_id, subject=subject, user_id=user_id)
+
+    # Synthesize audio (overwrites existing file when force=True)
+    out_dir = os.path.join(TTS_DIR, str(user_id))
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"{analysis_id}.mp3")
+    asyncio.run(_synthesize_mp3(script, out_path))
+
+    # Persist relative path
+    rel_path = os.path.relpath(out_path, DATA_DIR)
+    db.execute(
+        "UPDATE analysis_results SET tts_path = ? WHERE id = ?",
+        (rel_path, analysis_id)
+    )
+    db.commit()
+
+    return out_path

@@ -16,6 +16,9 @@ study.db
 # 临时文件
 _tmp/
 
+# TTS 生成的语音文件
+tts/
+
 # API密钥（敏感信息）
 .claude/
 

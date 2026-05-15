@@ -86,6 +86,9 @@ def _run_migrations(db):
     if not _column_exists(db, 'analysis_results', 'user_prompt'):
         db.execute("ALTER TABLE analysis_results ADD COLUMN user_prompt TEXT DEFAULT ''")
 
+    if not _column_exists(db, 'analysis_results', 'tts_path'):
+        db.execute("ALTER TABLE analysis_results ADD COLUMN tts_path TEXT")
+
     # Rebuild settings table with (user_id, key) PK
     if not _column_exists(db, 'settings', 'user_id'):
         db.executescript('''

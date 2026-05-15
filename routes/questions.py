@@ -12,7 +12,7 @@ from models.sub_question import (
     create_sub_question, get_sub_questions_by_question,
     update_sub_question, delete_sub_question, get_sub_question
 )
-from models.analysis import get_analyses_by_question
+from models.analysis import get_analyses_by_question, get_tts_paths_by_question
 
 questions_bp = Blueprint('questions', __name__)
 
@@ -165,10 +165,15 @@ def delete(question_id):
     if not question:
         flash('题目不存在或无权访问', 'error')
     else:
-        # Remove image file from disk
+        # Remove image file
         image_path = question.get('image_path')
         if image_path:
             full_path = os.path.join(DATA_DIR, str(user_id), image_path)
+            if os.path.isfile(full_path):
+                os.remove(full_path)
+        # Remove TTS audio files for all analyses of this question
+        for rel_path in get_tts_paths_by_question(question_id):
+            full_path = os.path.join(DATA_DIR, rel_path)
             if os.path.isfile(full_path):
                 os.remove(full_path)
         delete_question(question_id)

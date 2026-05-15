@@ -1,14 +1,36 @@
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.user import list_all_users, create_user, delete_user, update_password, count_admins, get_user_by_id
 from models.settings import (RECOGNITION_METHODS, ANALYSIS_METHODS,
                              get_enabled_recognition_methods, set_enabled_recognition_methods,
                              get_enabled_analysis_methods, set_enabled_analysis_methods,
                              get_setting, set_setting,
-                             get_subject_prompts, set_subject_prompts)
+                             get_subject_prompts, set_subject_prompts,
+                             get_subject_tts_prompts, set_subject_tts_prompts)
 from models.subject import get_all_subjects
 from utils.decorators import admin_required
+from config import BASE_DIR
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+def _hardcoded_system_prompt():
+    path = os.path.join(BASE_DIR, 'prompts', 'system_prompt.txt')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    from services.analysis_service import SYSTEM_PROMPT
+    return SYSTEM_PROMPT
+
+
+def _hardcoded_tts_system_prompt():
+    from services.analysis_service import _TTS_SCRIPT_SYSTEM
+    return _TTS_SCRIPT_SYSTEM
+
+
+def _hardcoded_subject_tts_prompts():
+    from services.analysis_service import _TTS_ENGLISH_EXTRA, _TTS_JAPANESE_EXTRA
+    return {'英语': _TTS_ENGLISH_EXTRA.strip(), '日语': _TTS_JAPANESE_EXTRA.strip()}
 
 
 @admin_bp.route('/users')
@@ -98,6 +120,9 @@ def models_config():
         global_system_prompt = request.form.get('global_system_prompt', '').strip()
         set_setting('system_prompt', global_system_prompt, user_id=0)
 
+        global_tts_system_prompt = request.form.get('global_tts_system_prompt', '').strip()
+        set_setting('tts_system_prompt', global_tts_system_prompt, user_id=0)
+
         subjects = get_all_subjects()
         admin_subject_prompts = {}
         for s in subjects:
@@ -106,14 +131,23 @@ def models_config():
                 admin_subject_prompts[s['name']] = prompt
         set_subject_prompts(admin_subject_prompts, user_id=0)
 
+        admin_subject_tts_prompts = {}
+        for s in subjects:
+            prompt = request.form.get(f'admin_tts_prompt_{s["name"]}', '').strip()
+            if prompt:
+                admin_subject_tts_prompts[s['name']] = prompt
+        set_subject_tts_prompts(admin_subject_tts_prompts, user_id=0)
+
         flash('模型配置已保存', 'success')
         return redirect(url_for('admin.models_config'))
 
     enabled_recognition = get_enabled_recognition_methods()
     enabled_analysis = get_enabled_analysis_methods()
     global_system_prompt = get_setting('system_prompt', '', user_id=0)
+    global_tts_system_prompt = get_setting('tts_system_prompt', '', user_id=0)
     subjects = get_all_subjects()
     admin_subject_prompts = get_subject_prompts(user_id=0)
+    admin_subject_tts_prompts = get_subject_tts_prompts(user_id=0)
 
     return render_template('admin/models.html',
                            recognition_methods=RECOGNITION_METHODS,
@@ -121,5 +155,10 @@ def models_config():
                            enabled_recognition=enabled_recognition,
                            enabled_analysis=enabled_analysis,
                            global_system_prompt=global_system_prompt,
+                           global_tts_system_prompt=global_tts_system_prompt,
                            subjects=subjects,
-                           admin_subject_prompts=admin_subject_prompts)
+                           admin_subject_prompts=admin_subject_prompts,
+                           admin_subject_tts_prompts=admin_subject_tts_prompts,
+                           default_subject_tts_prompts=_hardcoded_subject_tts_prompts(),
+                           default_system_prompt=_hardcoded_system_prompt(),
+                           default_tts_system_prompt=_hardcoded_tts_system_prompt())

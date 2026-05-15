@@ -58,14 +58,25 @@ def get_analysis_method(user_id=None):
 
 
 def get_subject_prompts(user_id=None):
-    """返回 {学科名: 个性化提示词} 字典"""
+    """返回 {学科名: 个性化分析提示词} 字典"""
     val = get_setting('subject_prompts', '{}', user_id)
     return json.loads(val)
 
 
 def set_subject_prompts(prompts_dict, user_id=None):
-    """保存 {学科名: 个性化提示词} 字典"""
+    """保存 {学科名: 个性化分析提示词} 字典"""
     set_setting('subject_prompts', json.dumps(prompts_dict, ensure_ascii=False), user_id)
+
+
+def get_subject_tts_prompts(user_id=None):
+    """返回 {学科名: 语音讲解提示词} 字典"""
+    val = get_setting('subject_tts_prompts', '{}', user_id)
+    return json.loads(val)
+
+
+def set_subject_tts_prompts(prompts_dict, user_id=None):
+    """保存 {学科名: 语音讲解提示词} 字典"""
+    set_setting('subject_tts_prompts', json.dumps(prompts_dict, ensure_ascii=False), user_id)
 
 
 # ── Global model enablement (admin-only, stored with user_id=0) ──────

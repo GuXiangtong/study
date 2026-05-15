@@ -67,26 +67,54 @@
 
     <!-- Tab 2: 系统提示词 -->
     <div class="tab-panel" id="tab-system">
-        <div class="card">
+        <div class="card" style="margin-bottom:24px;">
+            <h2>题目分析系统提示词</h2>
             <p class="form-hint" style="margin-bottom:12px;">
-                作为所有用户的默认系统提示词。用户可在「设置」页面覆盖为自己的自定义提示词；若用户未设置，则使用此处的全局提示词。留空则回退到内置默认提示词。
+                作为所有用户的默认分析系统提示词。用户可在「设置」页面覆盖；若未设置，则使用此处的全局提示词。留空则回退到内置默认提示词。
             </p>
-            <textarea name="global_system_prompt" rows="24"
+            <textarea name="global_system_prompt" rows="20"
                       class="subject-prompt-input"
-                      placeholder="留空则使用内置默认提示词">{{ global_system_prompt }}</textarea>
+                      placeholder="{{ default_system_prompt }}">{{ global_system_prompt }}</textarea>
+            <div style="margin-top:8px;display:flex;gap:8px;">
+                <button type="button" class="btn btn-secondary btn-small fill-default-btn" data-target="global_system_prompt">填入默认值</button>
+                <button type="button" class="btn btn-secondary btn-small clear-btn" data-target="global_system_prompt">清空</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>语音讲解系统提示词</h2>
+            <p class="form-hint" style="margin-bottom:12px;">
+                控制 AI 将分析结果改写为语音讲解稿时的默认方式。用户可在「设置」页面覆盖。留空则使用内置默认提示词。
+            </p>
+            <textarea name="global_tts_system_prompt" rows="16"
+                      class="subject-prompt-input"
+                      placeholder="{{ default_tts_system_prompt }}">{{ global_tts_system_prompt }}</textarea>
+            <div style="margin-top:8px;display:flex;gap:8px;">
+                <button type="button" class="btn btn-secondary btn-small fill-default-btn" data-target="global_tts_system_prompt">填入默认值</button>
+                <button type="button" class="btn btn-secondary btn-small clear-btn" data-target="global_tts_system_prompt">清空</button>
+            </div>
         </div>
     </div>
 
     <!-- Tab 3: 学科个性化提示词 -->
     <div class="tab-panel" id="tab-subject">
         <p class="form-hint" style="margin-bottom:16px;">
-            为各学科设置默认个性化要求。用户在「设置」中未填写某学科时，自动使用此处的默认值。留空表示该学科无默认提示词。
+            为各学科设置默认个性化提示词。用户在「设置」中未填写某学科时，自动使用此处的默认值。留空表示该学科无默认提示词。
         </p>
         {% for subject in subjects %}
         <div class="card" style="margin-bottom:16px;">
             <h2>{{ subject.name }}</h2>
-            <textarea name="admin_prompt_{{ subject.name }}" class="subject-prompt-input" rows="4"
+            <p class="form-hint" style="margin-bottom:6px;font-weight:600;">题目分析提示词</p>
+            <textarea name="admin_prompt_{{ subject.name }}" class="subject-prompt-input" rows="3"
                       placeholder="留空表示该学科无默认提示词">{{ admin_subject_prompts.get(subject.name, '') }}</textarea>
+            <p class="form-hint" style="margin-top:14px;margin-bottom:6px;font-weight:600;">语音讲解提示词</p>
+            <textarea name="admin_tts_prompt_{{ subject.name }}" class="subject-prompt-input" rows="3"
+                      placeholder="{{ default_subject_tts_prompts.get(subject.name) or '留空表示该学科无默认提示词' }}">{{ admin_subject_tts_prompts.get(subject.name, '') }}</textarea>
+            {% if default_subject_tts_prompts.get(subject.name) %}
+            <div style="margin-top:4px;">
+                <button type="button" class="btn btn-secondary btn-small fill-default-btn" data-target="admin_tts_prompt_{{ subject.name }}">填入默认值</button>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
@@ -112,6 +140,29 @@
             this.classList.add('active');
             var target = document.getElementById(targetId);
             if (target) target.classList.add('active');
+        });
+    });
+
+    // Fill default: copy placeholder into textarea
+    document.querySelectorAll('.fill-default-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var name = this.getAttribute('data-target');
+            var ta = document.querySelector('textarea[name="' + name + '"]');
+            if (ta && ta.placeholder) {
+                ta.value = ta.placeholder;
+                ta.focus();
+            }
+        });
+    });
+
+    // Clear buttons
+    document.querySelectorAll('.clear-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var name = this.getAttribute('data-target');
+            var ta = document.querySelector('textarea[name="' + name + '"]');
+            if (ta && confirm('确定清空此提示词，恢复使用内置默认值吗？')) {
+                ta.value = '';
+            }
         });
     });
 

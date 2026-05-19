@@ -538,26 +538,61 @@
         move: 'move',
     };
 
-    document.addEventListener('mousedown', function (e) {
-        const zone = e.target.closest('.pv-zone');
-        if (!zone) return;
+    function startDrag(zone, clientX, clientY) {
         const id = zone.dataset.id;
-        const handle = getDragHandle(zone, e.clientX, e.clientY);
-        if (!handle) return;
-
+        const handle = getDragHandle(zone, clientX, clientY);
+        if (!handle) return false;
         const q = questions.find(x => x.id === id);
-        if (!q) return;
+        if (!q) return false;
         selectQuestion(id);
-
         const imgRect = pageImg.getBoundingClientRect();
         dragState = {
             id, handle,
-            startX: e.clientX, startY: e.clientY,
+            startX: clientX, startY: clientY,
             startPos: { ...q.pos },
             imgW: imgRect.width, imgH: imgRect.height,
         };
         document.body.style.cursor = CURSORS[handle] || 'move';
-        e.preventDefault();
+        return true;
+    }
+
+    function applyDrag(clientX, clientY) {
+        const { id, handle, startX, startY, startPos, imgW, imgH } = dragState;
+        const q = questions.find(x => x.id === id);
+        if (!q) return;
+        const dxP = (clientX - startX) / imgW * 100;
+        const dyP = (clientY - startY) / imgH * 100;
+        const p = q.pos, sp = startPos;
+        if (handle.includes('w'))      p.x_start = clamp(sp.x_start + dxP, 0, p.x_end - 2);
+        else if (handle.includes('e')) p.x_end   = clamp(sp.x_end   + dxP, p.x_start + 2, 100);
+        if (handle.includes('n'))      p.y_start = clamp(sp.y_start + dyP, 0, p.y_end - 2);
+        else if (handle.includes('s')) p.y_end   = clamp(sp.y_end   + dyP, p.y_start + 2, 100);
+        if (handle === 'move') {
+            const w = sp.x_end - sp.x_start, h = sp.y_end - sp.y_start;
+            p.x_start = clamp(sp.x_start + dxP, 0, 100 - w);
+            p.x_end   = p.x_start + w;
+            p.y_start = clamp(sp.y_start + dyP, 0, 100 - h);
+            p.y_end   = p.y_start + h;
+        }
+        for (const k of ['x_start', 'x_end', 'y_start', 'y_end'])
+            p[k] = Math.round(p[k] * 10) / 10;
+        updateZonePos(id);
+        drawPreview(id);
+    }
+
+    function endDrag() {
+        if (dragState) {
+            if (_lastHoveredZone) _lastHoveredZone.style.cursor = '';
+            dragState = null;
+            document.body.style.cursor = '';
+        }
+    }
+
+    // Mouse events
+    document.addEventListener('mousedown', function (e) {
+        const zone = e.target.closest('.pv-zone');
+        if (!zone) return;
+        if (startDrag(zone, e.clientX, e.clientY)) e.preventDefault();
     });
 
     document.addEventListener('mousemove', function (e) {
@@ -578,42 +613,27 @@
             }
             return;
         }
-
-        const { id, handle, startX, startY, startPos, imgW, imgH } = dragState;
-        const q = questions.find(x => x.id === id);
-        if (!q) return;
-
-        const dxP = (e.clientX - startX) / imgW * 100;
-        const dyP = (e.clientY - startY) / imgH * 100;
-        const p = q.pos, sp = startPos;
-
-        if (handle.includes('w'))      p.x_start = clamp(sp.x_start + dxP, 0, p.x_end - 2);
-        else if (handle.includes('e')) p.x_end   = clamp(sp.x_end   + dxP, p.x_start + 2, 100);
-        if (handle.includes('n'))      p.y_start = clamp(sp.y_start + dyP, 0, p.y_end - 2);
-        else if (handle.includes('s')) p.y_end   = clamp(sp.y_end   + dyP, p.y_start + 2, 100);
-
-        if (handle === 'move') {
-            const w = sp.x_end - sp.x_start, h = sp.y_end - sp.y_start;
-            p.x_start = clamp(sp.x_start + dxP, 0, 100 - w);
-            p.x_end   = p.x_start + w;
-            p.y_start = clamp(sp.y_start + dyP, 0, 100 - h);
-            p.y_end   = p.y_start + h;
-        }
-
-        for (const k of ['x_start', 'x_end', 'y_start', 'y_end'])
-            p[k] = Math.round(p[k] * 10) / 10;
-
-        updateZonePos(id);
-        drawPreview(id);
+        applyDrag(e.clientX, e.clientY);
     });
 
-    document.addEventListener('mouseup', function () {
-        if (dragState) {
-            if (_lastHoveredZone) _lastHoveredZone.style.cursor = '';
-            dragState = null;
-            document.body.style.cursor = '';
-        }
-    });
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch events (iPad / mobile)
+    document.addEventListener('touchstart', function (e) {
+        const zone = e.target.closest('.pv-zone');
+        if (!zone) return;
+        const t = e.touches[0];
+        if (startDrag(zone, t.clientX, t.clientY)) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function (e) {
+        if (!dragState) return;
+        e.preventDefault();
+        const t = e.touches[0];
+        applyDrag(t.clientX, t.clientY);
+    }, { passive: false });
+
+    document.addEventListener('touchend', endDrag);
 
     // Click on zone → select
     overlay.addEventListener('click', function (e) {

@@ -371,6 +371,7 @@ def _parse_llm_response(llm_data):
         'weakness_analysis': llm_data.get('step2', {}).get('weakness_analysis', ''),
         'knowledge_framework': llm_data.get('step2', {}).get('knowledge_framework', ''),
         'comparison_table': llm_data.get('step2', {}).get('comparison_table', ''),
+        'mindmap': llm_data.get('step2', {}).get('mindmap', ''),
     }
 
     step3 = {

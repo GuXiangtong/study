@@ -63,6 +63,14 @@
             <div class="analysis-section">
                 <div class="analysis-text">{{ step2.weakness_analysis }}</div>
             </div>
+            {% if step2.mindmap %}
+            <div class="mindmap-section">
+                <h3 style="margin-top:20px;margin-bottom:12px;">知识结构导图</h3>
+                <div class="mindmap-container">
+                    <svg id="mindmap-svg" style="width:100%;min-height:360px;display:block;"></svg>
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -169,6 +177,11 @@
 {% endblock %}
 
 {% block scripts %}
+{% if step2 and step2.mindmap %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-lib/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-view/dist/browser/index.js"></script>
+{% endif %}
 <script>
 const ANALYSIS_ID = {{ analysis.id }};
 
@@ -258,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 MathJax.typesetPromise();
 
+
 function _loadAudio(url, method, analysisId) {
     const btn = document.getElementById('tts-btn');
     const regenBtn = document.getElementById('tts-regen-btn');
@@ -324,4 +338,16 @@ function regenerateAnalysis(analysisId) {
     _loadAudio(`/analysis/${analysisId}/speak/regenerate`, 'POST', analysisId);
 }
 </script>
+{% if step2 and step2.mindmap %}
+<script>
+(function() {
+    const md = {{ step2.mindmap | tojson }};
+    const svg = document.getElementById('mindmap-svg');
+    if (!svg || !window.markmap) return;
+    const { Transformer, Markmap } = window.markmap;
+    const { root } = new Transformer().transform(md);
+    Markmap.create(svg, {}, root);
+})();
+</script>
+{% endif %}
 {% endblock %}

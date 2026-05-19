@@ -73,6 +73,15 @@ def get_tts_paths_by_exam(exam_id):
     return [r['tts_path'] for r in rows]
 
 
+def update_step4(analysis_id, step4_data):
+    db = get_db()
+    db.execute(
+        "UPDATE analysis_results SET step4_data = ? WHERE id = ?",
+        (step4_data, analysis_id)
+    )
+    db.commit()
+
+
 def delete_analysis(analysis_id, user_id=None):
     """Delete an analysis record and return its file_path for cleanup."""
     db = get_db()

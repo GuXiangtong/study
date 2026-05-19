@@ -4,12 +4,21 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from utils.decorators import login_required
 from models.question import get_question, update_question
 from models.sub_question import get_sub_questions_by_question
-from models.analysis import get_analysis, delete_analysis
+from models.analysis import get_analysis, delete_analysis, update_step4
 from models.analysis_chat import get_chats, add_chat_messages
 from services.analysis_service import AnalysisService, generate_tts_audio
 from config import ANALYSIS_DIR
 
 analysis_bp = Blueprint('analysis', __name__)
+
+
+def safe_json(raw):
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
 
 
 @analysis_bp.route('/analysis/question/<int:question_id>/run', methods=['POST'])
@@ -96,14 +105,6 @@ def view_analysis(analysis_id):
     current_mode = get_analysis_method(user_id=user_id)
     chat_model = _MODE_LABELS.get(current_mode, current_mode)
 
-    def safe_json(raw):
-        if not raw:
-            return None
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
     return render_template('analysis/result.html', analysis=analysis, practices=practices,
                            chats=get_chats(analysis_id, user_id),
                            chat_model=chat_model,
@@ -111,6 +112,26 @@ def view_analysis(analysis_id):
                            step2=safe_json(analysis['step2_data']),
                            step3=safe_json(analysis['step3_data']),
                            step4=safe_json(analysis['step4_data']))
+
+
+@analysis_bp.route('/analysis/<int:analysis_id>/generate-exercises', methods=['POST'])
+@login_required
+def generate_exercises(analysis_id):
+    user_id = session['user_id']
+    analysis = get_analysis(analysis_id, user_id=user_id)
+    if not analysis:
+        return jsonify({'error': '记录不存在或无权访问'}), 404
+    # 幂等：已有练习题直接返回
+    if analysis.get('step4_data'):
+        existing = safe_json(analysis['step4_data'])
+        if existing and existing.get('exercises'):
+            return jsonify({'step4': existing})
+    try:
+        service = AnalysisService(user_id=user_id)
+        step4 = service.generate_step4(analysis_id)
+        return jsonify({'step4': step4})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @analysis_bp.route('/analysis/<int:analysis_id>/prompts')

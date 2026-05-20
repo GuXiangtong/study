@@ -211,19 +211,66 @@ function toggleEditForm(id) {
 }
 
 (function () {
+    var QUESTION_ID = {{ question.id }};
+    var analysisTimestamps = [{% for a in analyses %}"{{ a.created_at }}"{% if not loop.last %},{% endif %}{% endfor %}];
+    var storageKey = 'pending_analysis_' + QUESTION_ID;
+    var TIMEOUT_MS = 5 * 60 * 1000;
+
     var form = document.getElementById('analysis-form');
     var btn = document.getElementById('analysis-btn');
 
-    if (form && btn) {
-        form.addEventListener('submit', function () {
+    function showStatusMsg(text, bg, border, color) {
+        var existing = document.getElementById('analysis-status-msg');
+        if (existing) existing.remove();
+        var pageHeader = document.querySelector('.page-header');
+        if (!pageHeader) return;
+        var msg = document.createElement('div');
+        msg.id = 'analysis-status-msg';
+        msg.style.cssText = 'background:' + bg + ';border:1px solid ' + border + ';border-radius:6px;padding:10px 16px;margin-bottom:16px;font-size:0.9rem;color:' + color + ';';
+        msg.textContent = text;
+        pageHeader.insertAdjacentElement('afterend', msg);
+    }
+
+    function checkPendingAnalysis() {
+        var flagTime = parseInt(localStorage.getItem(storageKey) || '0', 10);
+        if (!flagTime) return;
+
+        var latestTime = analysisTimestamps.length
+            ? Math.max.apply(null, analysisTimestamps.map(function (s) { return new Date(s.replace(' ', 'T') + 'Z').getTime(); }))
+            : 0;
+        var age = Date.now() - flagTime;
+
+        if (latestTime > flagTime || age > TIMEOUT_MS) {
+            localStorage.removeItem(storageKey);
+            return;
+        }
+
+        showStatusMsg(
+            '上次分析正在进行中，约需 30–60 秒，完成后结果将自动保存并出现在下方历史记录中。',
+            '#fff3cd', '#ffc107', '#664d03'
+        );
+        if (btn) {
             btn.disabled = true;
             btn.textContent = '分析中...';
+        }
+    }
+
+    if (form && btn) {
+        form.addEventListener('submit', function () {
+            localStorage.setItem(storageKey, Date.now().toString());
+            btn.disabled = true;
+            btn.textContent = '分析中...';
+            showStatusMsg(
+                '分析已提交，约需 30–60 秒，完成后自动保存，稍后可在下方历史记录中查看。',
+                '#d1ecf1', '#bee5eb', '#0c5460'
+            );
         });
     }
 
+    checkPendingAnalysis();
+
     window.addEventListener('pageshow', function (e) {
         if (e.persisted) {
-            // Page restored from back/forward cache — reload to show latest data
             window.location.reload();
         }
     });

@@ -213,36 +213,13 @@ function toggleEditForm(id) {
 (function () {
     var form = document.getElementById('analysis-form');
     var btn = document.getElementById('analysis-btn');
-    var analysisInProgress = false;
 
     if (form && btn) {
         form.addEventListener('submit', function () {
             btn.disabled = true;
             btn.textContent = '分析中...';
-            // Delay setting the flag so beforeunload does NOT block the form's own navigation
-            setTimeout(function () { analysisInProgress = true; }, 0);
         });
     }
-
-    // Intercept link clicks while analysis is in progress
-    document.addEventListener('click', function (e) {
-        if (!analysisInProgress) return;
-        var link = e.target.closest('a');
-        if (link && !e.defaultPrevented) {
-            if (!confirm('错题分析正在进行中，离开页面将中断分析。确定要离开吗？')) {
-                e.preventDefault();
-            }
-        }
-    });
-
-    // Warn on browser back/close while analysis is in progress
-    window.addEventListener('beforeunload', function (e) {
-        if (analysisInProgress) {
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        }
-    });
 
     window.addEventListener('pageshow', function (e) {
         if (e.persisted) {

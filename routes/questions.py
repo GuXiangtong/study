@@ -5,7 +5,7 @@ from utils.decorators import login_required
 from models.subject import get_all_subjects
 from models.exam import get_all_exams, get_exam, create_exam
 from models.question import (
-    create_question, get_question, get_questions_by_exam,
+    create_question, get_question, get_question_by_number, get_questions_by_exam,
     get_questions_filtered, update_question, delete_question
 )
 from models.sub_question import (
@@ -63,6 +63,10 @@ def create():
         return redirect(url_for('questions.create'))
 
     image_path = None
+    if get_question_by_number(exam_id, question_number, user_id=user_id):
+        flash('该考试下已存在相同题号的题目', 'error')
+        return redirect(url_for('questions.create'))
+
     file = request.files.get('image')
     if file and file.filename:
         ext = os.path.splitext(file.filename)[1].lower()

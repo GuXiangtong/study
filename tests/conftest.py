@@ -204,3 +204,29 @@ def make_temp_task(test_paths, task_id, user_id, subdir='questions', filename='q
     with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:
         json.dump({'task_id': task_id, 'user_id': user_id, 'questions': []}, f)
     make_dummy_file(os.path.join(task_dir, subdir, filename))
+
+
+# ── Admin user ────────────────────────────────────────────────────────
+
+@pytest.fixture(scope='session')
+def admin_user(raw_db):
+    """Session-scoped admin account for admin route tests."""
+    raw_db.execute(
+        'INSERT OR IGNORE INTO users (username, password_hash, is_admin, must_change_password)'
+        ' VALUES (?, ?, 1, 0)',
+        ('test_admin', generate_password_hash('admin_pw')),
+    )
+    raw_db.commit()
+    uid = raw_db.execute(
+        'SELECT id FROM users WHERE username = ?', ('test_admin',)
+    ).fetchone()['id']
+    return {'id': uid, 'username': 'test_admin', 'password': 'admin_pw'}
+
+
+def login_as_admin(client, admin_user):
+    """Log the test client in as the admin user."""
+    client.post(
+        '/auth/login',
+        data={'username': admin_user['username'], 'password': admin_user['password']},
+        follow_redirects=True,
+    )

@@ -59,6 +59,17 @@ def get_questions_filtered(subject_id=None, exam_id=None, search=None, user_id=N
     return db.execute(query, params).fetchall()
 
 
+def get_question_by_number(exam_id, question_number, user_id=None):
+    db = get_db()
+    query = "SELECT id FROM questions WHERE exam_id = ? AND question_number = ?"
+    params = [exam_id, question_number]
+    if user_id is not None:
+        query += " AND user_id = ?"
+        params.append(user_id)
+    row = db.execute(query, params).fetchone()
+    return row['id'] if row else None
+
+
 def update_question(question_id, **fields):
     db = get_db()
     allowed = {'question_number', 'stem', 'image_path', 'student_answer', 'error_reason'}

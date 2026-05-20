@@ -233,10 +233,9 @@ function toggleEditForm(id) {
     });
 
     window.addEventListener('pageshow', function (e) {
-        if (e.persisted && btn) {
-            btn.disabled = false;
-            btn.textContent = '🔍 分析错因';
-            analysisRunning = false;
+        if (e.persisted) {
+            // Page restored from back/forward cache — reload to show latest data
+            window.location.reload();
         }
     });
 }());

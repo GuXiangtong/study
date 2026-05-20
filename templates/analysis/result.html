@@ -7,6 +7,7 @@
     <p>学科：{{ analysis.subject_name }} | 考试：{{ analysis.exam_name }} | 题号：{{ analysis.question_number }}{{ analysis.sub_label or '' }}</p>
     <p class="analysis-date">分析时间：{{ analysis.created_at|localtime }}{% if analysis.model %} | 分析模型：{{ analysis.model }}{% endif %}</p>
     <div class="header-actions">
+        <a href="javascript:history.back()" class="btn btn-secondary">返回</a>
         <form method="POST" action="{{ url_for('analysis.delete_analysis_route', analysis_id=analysis.id) }}" onsubmit="return confirm('确定删除这条分析记录吗？')">
             <button type="submit" class="btn btn-danger">删除此报告</button>
         </form>
@@ -66,7 +67,7 @@
             {% if step2.mindmap %}
             <div class="mindmap-section">
                 <h3 style="margin-top:20px;margin-bottom:12px;">知识结构导图</h3>
-                <div class="mindmap-container">
+                <div class="mindmap-container no-mathjax">
                     <svg id="mindmap-svg" style="width:100%;min-height:360px;display:block;"></svg>
                 </div>
             </div>
@@ -178,9 +179,11 @@
 
 {% block scripts %}
 {% if step2 and step2.mindmap %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/markmap-lib/dist/browser/index.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/markmap-view/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.15/dist/browser/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-view@0.15/dist/browser/index.js"></script>
 {% endif %}
 <script>
 const ANALYSIS_ID = {{ analysis.id }};
@@ -376,13 +379,25 @@ function regenerateAnalysis(analysisId) {
 </script>
 {% if step2 and step2.mindmap %}
 <script>
-(function() {
+(async function() {
     const md = {{ step2.mindmap | tojson }};
     const svg = document.getElementById('mindmap-svg');
     if (!svg || !window.markmap) return;
-    const { Transformer, Markmap } = window.markmap;
-    const { root } = new Transformer().transform(md);
-    Markmap.create(svg, {}, root);
+
+    const { Transformer, Markmap, loadCSS, loadJS } = window.markmap;
+    const transformer = new Transformer();
+    const { root, features } = transformer.transform(md);
+
+    // Load assets detected by transformer (includes KaTeX for math formulas)
+    try {
+        const { styles, scripts } = transformer.getUsedAssets(features);
+        if (styles) loadCSS(styles);
+        if (scripts) await loadJS(scripts, { getMarkmap: () => window.markmap });
+    } catch (e) {
+        console.warn('Markmap: failed to load plugin assets, rendering without math support', e);
+    }
+
+    Markmap.create(svg, { autoFit: true }, root);
 })();
 </script>
 {% endif %}

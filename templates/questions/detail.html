@@ -213,16 +213,30 @@ function toggleEditForm(id) {
 (function () {
     var form = document.getElementById('analysis-form');
     var btn = document.getElementById('analysis-btn');
+    var analysisRunning = false;
+
     if (form && btn) {
         form.addEventListener('submit', function () {
             btn.disabled = true;
             btn.textContent = '分析中...';
+            analysisRunning = true;
         });
     }
+
+    // Warn user if they try to leave while analysis is running
+    window.addEventListener('beforeunload', function (e) {
+        if (analysisRunning) {
+            e.preventDefault();
+            e.returnValue = '错题分析正在进行中，离开页面将中断分析。确定要离开吗？';
+            return e.returnValue;
+        }
+    });
+
     window.addEventListener('pageshow', function (e) {
         if (e.persisted && btn) {
             btn.disabled = false;
             btn.textContent = '🔍 分析错因';
+            analysisRunning = false;
         }
     });
 }());

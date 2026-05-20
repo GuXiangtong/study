@@ -774,6 +774,68 @@ class AnalysisService:
             'exercises': [],
         }
 
+    def generate_step4(self, analysis_id):
+        """Generate practice exercises for an existing analysis and persist them."""
+        from models.analysis import get_analysis, update_step4
+
+        analysis = get_analysis(analysis_id)
+        if not analysis:
+            raise ValueError(f"Analysis {analysis_id} not found")
+
+        step1 = json.loads(analysis['step1_data']) if analysis.get('step1_data') else {}
+        step2 = json.loads(analysis['step2_data']) if analysis.get('step2_data') else {}
+        question = get_question(analysis['question_id']) if analysis.get('question_id') else {}
+        question = dict(question) if question else {}
+
+        knowledge_points = step1.get('knowledge_points', '')
+        syllabus_section = step1.get('syllabus_section', '')
+        weakness_analysis = step2.get('weakness_analysis', '')
+        subject = question.get('subject_name', analysis.get('subject_name', ''))
+        stem = question.get('stem', '')
+
+        user_prompt_parts = [f"学科：{subject}"]
+        if syllabus_section:
+            user_prompt_parts.append(f"所属考纲板块：{syllabus_section}")
+        if knowledge_points:
+            user_prompt_parts.append(f"核心知识点：{knowledge_points}")
+        if weakness_analysis:
+            user_prompt_parts.append(f"薄弱点诊断：{weakness_analysis}")
+        if stem:
+            user_prompt_parts.append(f"原题题干（供参考）：{stem}")
+        user_prompt_parts.append("\n请根据以上信息生成三道针对性巩固练习题。")
+        user_prompt = '\n'.join(user_prompt_parts)
+
+        exercises_prompt_path = os.path.join(_PROMPT_DIR, 'exercises_prompt.txt')
+        with open(exercises_prompt_path, 'r', encoding='utf-8') as f:
+            system_prompt = f.read().strip()
+
+        api_key, api_url, model = self._get_llm_config()
+        llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+
+        exercises = llm_data.get('exercises', [])
+        step4 = {
+            'title': '第四步：生成巩固练习',
+            'description': '针对薄弱知识点生成三道变式练习题：',
+            'levels': [
+                {'difficulty': '基础题', 'target': '直接考察核心知识点的理解和基本应用',
+                 'content': '', 'answer': '', 'solution_steps': ''},
+                {'difficulty': '提高题', 'target': '综合 2-3 个知识点，对应高考中档题难度',
+                 'content': '', 'answer': '', 'solution_steps': ''},
+                {'difficulty': '难题', 'target': '综合运用和创新思维，对应高考压轴题难度',
+                 'content': '', 'answer': '', 'solution_steps': ''},
+            ],
+            'exercises': exercises,
+        }
+        for i, lv in enumerate(step4['levels']):
+            if i < len(exercises):
+                lv['content'] = exercises[i].get('content', '')
+                lv['answer'] = exercises[i].get('answer', '')
+                lv['solution_steps'] = exercises[i].get('solution_steps', '')
+
+        step4 = _fix_literal_newlines(step4)
+        update_step4(analysis_id, json.dumps(step4, ensure_ascii=False))
+        return step4
+
     def _write_analysis_file(self, file_path, question, step1, step2, step3, step4, mode='deepseek'):
         content = f"""# 错题分析报告
 

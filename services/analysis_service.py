@@ -150,6 +150,10 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 body["temperature"] = 0.7
             else:
                 body["thinking"] = {"type": "disabled"}
+            # Enable thinking for Doubao seed-2-1 analysis
+            from config import DOUBAO_API_URL
+            if api_url == DOUBAO_API_URL:
+                body["thinking"] = {"type": "enabled"}
             resp = session.post(api_url, headers=headers, json=body, timeout=300)
             log(f"HTTP {resp.status_code}")
             resp.raise_for_status()

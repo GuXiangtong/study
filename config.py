@@ -48,8 +48,8 @@ ANTHROPIC_MODEL = 'claude-opus-4-6'
 # Doubao Seed (ByteDance Ark)
 DOUBAO_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
 DOUBAO_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
-DOUBAO_MODEL = 'doubao-seed-2-0-pro-260215'
-DOUBAO_VISION_MODEL = 'doubao-seed-1-6-vision-250815'
+DOUBAO_MODEL = 'doubao-seed-2-1-pro-260628'
+DOUBAO_VISION_MODEL = 'doubao-seed-2-1-pro-260628'
 
 # Kimi (Moonshot AI) — OpenAI-compatible, supports vision
 KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'

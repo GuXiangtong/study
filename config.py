@@ -53,4 +53,4 @@ DOUBAO_VISION_MODEL = 'doubao-seed-2-1-pro-260628'
 
 # Kimi (Moonshot AI) — OpenAI-compatible, supports vision
 KIMI_API_URL = 'https://api.moonshot.cn/v1/chat/completions'
-KIMI_MODEL = 'kimi-k2.6'
+KIMI_MODEL = 'kimi-k3'

@@ -3,6 +3,8 @@ import json
 import os
 import re
 import shutil
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from PIL import Image
@@ -230,6 +232,7 @@ def _recognize_page_with_doubao(image_path, page_num, total_pages):
     client = _get_doubao_client()
     response = client.responses.create(
         model=DOUBAO_VISION_MODEL,
+        thinking={'type': 'disabled'},
         input=[{
             'role': 'user',
             'content': [
@@ -290,6 +293,7 @@ def _recognize_single_question(image_path):
 
     response = client.responses.create(
         model=DOUBAO_VISION_MODEL,
+        thinking={'type': 'disabled'},
         input=[{
             'role': 'user',
             'content': [
@@ -487,6 +491,9 @@ def _recognize_single_question_ocr(image_path, user_id=None):
 _paddle_ocr = None
 _paddle_formula = None
 _paddle_ocr_version = None  # 'v3' or 'legacy'
+# PaddleOCR predict/ocr is not thread-safe; serialize access when
+# recognition runs concurrently across questions.
+_paddle_lock = threading.Lock()
 
 
 def _get_paddle_ocr():
@@ -562,7 +569,8 @@ def _extract_image_text(image_path):
 
         if _paddle_ocr_version == 'v3':
             # PaddleOCR v3.x: use predict() method
-            result = ocr.predict(image_path)
+            with _paddle_lock:
+                result = ocr.predict(image_path)
             if not result:
                 logger.warning(f'PaddleOCR predict returned empty result for {image_path}')
                 return None
@@ -603,7 +611,8 @@ def _extract_image_text(image_path):
             return blocks if blocks else None
         else:
             # Legacy PaddleOCR v2.x: use ocr() method
-            result = ocr.ocr(image_path)
+            with _paddle_lock:
+                result = ocr.ocr(image_path)
             if not result:
                 logger.warning(f'PaddleOCR ocr returned empty result for {image_path}')
                 return None
@@ -1224,8 +1233,63 @@ def crop_region(task_id, page, x_start, y_start, x_end, y_end, name):
         return None
 
 
+def _recognize_one_question(q, pages_dir, questions_dir, recognition_method,
+                            user_id=None):
+    """Crop and recognize a single question. Returns a result dict.
+
+    Isolated worker for concurrent recognition: never raises — any failure is
+    returned as {'id': q_id, 'error': ...} so one bad question can't abort the
+    batch.
+    """
+    q_id = q['id']
+    page = int(q.get('page', 1))
+    x_start = float(q.get('x_start', 0))
+    y_start = float(q.get('y_start', 0))
+    x_end = float(q.get('x_end', 100))
+    y_end = float(q.get('y_end', 100))
+
+    page_img = os.path.join(pages_dir, f'page_{page:03d}.png')
+    if not os.path.isfile(page_img):
+        for ext in ('.jpg', '.jpeg'):
+            alt = os.path.join(pages_dir, f'page_{page:03d}{ext}')
+            if os.path.isfile(alt):
+                page_img = alt
+                break
+        else:
+            return {'id': q_id, 'error': f'第{page}页图片不存在'}
+
+    img_name = f'{q_id}.png'
+    img_path = os.path.join(questions_dir, img_name)
+    try:
+        _crop_question(page_img, y_start, y_end, img_path, x_start=x_start, x_end=x_end)
+    except Exception as e:
+        return {'id': q_id, 'error': f'裁图失败: {e}'}
+
+    try:
+        if recognition_method == 'doubao_seed':
+            content = _recognize_single_question(img_path)
+        elif recognition_method == 'kimi':
+            content = _recognize_single_question_kimi(img_path)
+        else:
+            # paddleocr_deepseek: OCR the cropped image, then refine with text LLM
+            content = _recognize_single_question_ocr(img_path, user_id=user_id)
+        return {'id': q_id, 'content': content, 'image': img_name}
+    except Exception as e:
+        return {'id': q_id, 'error': str(e)}
+
+
+# Max parallel recognition workers. Kept modest to stay within Doubao/Kimi
+# QPS limits; recognition is API-bound so a small pool already collapses total
+# latency to roughly the slowest single question.
+_RECOGNIZE_MAX_WORKERS = 5
+
+
 def recognize_question_images(task_id, questions_data, user_id=None):
     """Crop question regions from page images and recognize their text content.
+
+    Questions are recognized concurrently (bounded thread pool). Each question
+    is handled in isolation, so one failure does not affect the others. The
+    returned list preserves the input order of ``questions_data``.
 
     Args:
         task_id: The processing task ID.
@@ -1243,45 +1307,17 @@ def recognize_question_images(task_id, questions_data, user_id=None):
 
     recognition_method = _get_recognition_method_name(user_id=user_id)
 
-    results = []
-    for q in questions_data:
-        q_id = q['id']
-        page = int(q.get('page', 1))
-        x_start = float(q.get('x_start', 0))
-        y_start = float(q.get('y_start', 0))
-        x_end = float(q.get('x_end', 100))
-        y_end = float(q.get('y_end', 100))
+    if not questions_data:
+        return []
 
-        page_img = os.path.join(pages_dir, f'page_{page:03d}.png')
-        if not os.path.isfile(page_img):
-            for ext in ('.jpg', '.jpeg'):
-                alt = os.path.join(pages_dir, f'page_{page:03d}{ext}')
-                if os.path.isfile(alt):
-                    page_img = alt
-                    break
-            else:
-                results.append({'id': q_id, 'error': f'第{page}页图片不存在'})
-                continue
-
-        img_name = f'{q_id}.png'
-        img_path = os.path.join(questions_dir, img_name)
-        try:
-            _crop_question(page_img, y_start, y_end, img_path, x_start=x_start, x_end=x_end)
-        except Exception as e:
-            results.append({'id': q_id, 'error': f'裁图失败: {e}'})
-            continue
-
-        try:
-            if recognition_method == 'doubao_seed':
-                content = _recognize_single_question(img_path)
-            elif recognition_method == 'kimi':
-                content = _recognize_single_question_kimi(img_path)
-            else:
-                # paddleocr_deepseek: OCR the cropped image, then refine with text LLM
-                content = _recognize_single_question_ocr(img_path, user_id=user_id)
-            results.append({'id': q_id, 'content': content, 'image': img_name})
-        except Exception as e:
-            results.append({'id': q_id, 'error': str(e)})
+    max_workers = min(_RECOGNIZE_MAX_WORKERS, len(questions_data))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # executor.map preserves input order in its output.
+        results = list(executor.map(
+            lambda q: _recognize_one_question(
+                q, pages_dir, questions_dir, recognition_method, user_id=user_id),
+            questions_data,
+        ))
 
     return results
 

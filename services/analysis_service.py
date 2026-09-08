@@ -145,11 +145,12 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
                 ],
                 "max_tokens": 8192,
             }
-            # Kimi k2.6 rejects temperature/top_p/etc.; other models accept them
+            # Kimi rejects temperature/top_p/etc.; other models accept them.
+            # Kimi k3 uses reasoning_effort (not thinking:*) to control thinking.
             if not is_kimi:
                 body["temperature"] = 0.7
             else:
-                body["thinking"] = {"type": "disabled"}
+                body["reasoning_effort"] = "high"
             # Enable thinking for Doubao seed-2-1 analysis
             from config import DOUBAO_API_URL
             if api_url == DOUBAO_API_URL:

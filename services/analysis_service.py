@@ -15,7 +15,7 @@ TTS_VOICE = 'zh-CN-XiaoxiaoNeural'
 
 _MODEL_LABEL_TO_MODE = {
     'DeepSeek':          'deepseek',
-    'Kimi k2.6':         'kimi',
+    'Kimi k3.0':         'kimi',
     'Anthropic (Claude)':'anthropic',
     'Doubao Seed':       'doubao_seed',
 }
@@ -100,7 +100,7 @@ def _build_analysis_prompt(question, sub_questions):
     return '\n'.join(prompt_parts)
 
 
-def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
+def _call_llm(system_prompt, user_prompt, api_key, api_url, model, thinking_enabled=True):
     """Call an LLM API and return the parsed JSON response.
 
     Supports:
@@ -149,12 +149,12 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model):
             # Kimi k3 uses reasoning_effort (not thinking:*) to control thinking.
             if not is_kimi:
                 body["temperature"] = 0.7
-            else:
+            elif thinking_enabled:
                 body["reasoning_effort"] = "high"
             # Enable thinking for Doubao seed-2-1 analysis
             from config import DOUBAO_API_URL
             if api_url == DOUBAO_API_URL:
-                body["thinking"] = {"type": "enabled"}
+                body["thinking"] = {"type": "enabled" if thinking_enabled else "disabled"}
             resp = session.post(api_url, headers=headers, json=body, timeout=300)
             log(f"HTTP {resp.status_code}")
             resp.raise_for_status()
@@ -441,6 +441,11 @@ class AnalysisService:
             self.mode = method
         else:
             self.mode = mode
+        try:
+            from models.settings import get_analysis_thinking
+            self.thinking_enabled = get_analysis_thinking(user_id=user_id)
+        except Exception:
+            self.thinking_enabled = True
 
     def run_full_analysis(self, question_id):
         question = dict(get_question(question_id))
@@ -523,7 +528,8 @@ class AnalysisService:
                 log(f"Added subject custom prompt, total system length: {len(system_prompt)}")
 
         log("Calling _call_llm...")
-        llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model)
+        llm_data = _call_llm(system_prompt, user_prompt, api_key, api_url, model,
+                             thinking_enabled=self.thinking_enabled)
         log(f"_call_llm returned, keys: {list(llm_data.keys())}")
 
         self._last_system_prompt = system_prompt
@@ -646,7 +652,7 @@ class AnalysisService:
         model_label = {
             'doubao_seed': 'Doubao Seed',
             'anthropic': 'Anthropic (Claude)',
-            'kimi': 'Kimi k2.6',
+            'kimi': 'Kimi k3.0',
         }.get(self.mode, 'DeepSeek')
         analysis_id = create_analysis(
             sub_question_id=None,
@@ -922,7 +928,7 @@ class AnalysisService:
         model_name = {
             'doubao_seed': 'Doubao Seed AI',
             'anthropic': 'Anthropic (Claude)',
-            'kimi': 'Kimi k2.6',
+            'kimi': 'Kimi k3.0',
         }.get(mode, 'DeepSeek AI')
         content += f"\n---\n*本报告由 {model_name} 自动生成*\n"
 

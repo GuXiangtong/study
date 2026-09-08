@@ -7,15 +7,18 @@ from database import get_db
 RECOGNITION_METHODS = {
     'paddleocr_deepseek': 'PaddleOCR + DeepSeek',
     'doubao_seed': 'Doubao Seed',
-    'kimi': 'Kimi k2.6',
+    'kimi': 'Kimi k3.0',
 }
 
 ANALYSIS_METHODS = {
     'deepseek': 'DeepSeek',
     'anthropic': 'Anthropic (Claude)',
     'doubao_seed': 'Doubao Seed',
-    'kimi': 'Kimi k2.6',
+    'kimi': 'Kimi k3.0',
 }
+
+# Analysis methods that expose a thinking-mode toggle to the user
+ANALYSIS_METHODS_WITH_THINKING = {'kimi', 'doubao_seed'}
 
 # Default: all models enabled
 _ALL_RECOGNITION_KEYS = list(RECOGNITION_METHODS.keys())
@@ -55,6 +58,11 @@ def get_recognition_method(user_id=None):
 
 def get_analysis_method(user_id=None):
     return get_setting('analysis_method', 'deepseek', user_id)
+
+
+def get_analysis_thinking(user_id=None):
+    """返回用户是否启用 thinking 模式（默认 True，与历史行为一致）。"""
+    return get_setting('analysis_thinking', 'true', user_id) == 'true'
 
 
 def get_subject_prompts(user_id=None):

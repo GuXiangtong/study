@@ -6,7 +6,7 @@ from models.settings import (get_available_recognition_methods, get_available_an
                              get_all_settings, set_setting, get_setting,
                              get_subject_prompts, set_subject_prompts,
                              get_subject_tts_prompts, set_subject_tts_prompts,
-                             fix_user_model_settings)
+                             fix_user_model_settings, ANALYSIS_METHODS_WITH_THINKING)
 from models.subject import get_all_subjects
 from config import BASE_DIR
 
@@ -59,6 +59,10 @@ def index():
         if analysis in analysis_methods:
             set_setting('analysis_method', analysis, user_id=user_id)
 
+        # Save thinking mode (checkbox: present = true, absent = false)
+        thinking = 'true' if request.form.get('analysis_thinking') else 'false'
+        set_setting('analysis_thinking', thinking, user_id=user_id)
+
         # Save subject-specific prompts
         subjects = get_all_subjects()
         prompts = {}
@@ -99,6 +103,7 @@ def index():
     return render_template('settings/index.html',
                            recognition_methods=recognition_methods,
                            analysis_methods=analysis_methods,
+                           analysis_thinking_methods=list(ANALYSIS_METHODS_WITH_THINKING),
                            current=current,
                            subjects=subjects,
                            subject_prompts=subject_prompts,

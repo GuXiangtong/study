@@ -120,3 +120,80 @@ class TestSubjectPrompts:
 
         assert '数学' not in prompts, 'blank prompt should not be saved'
         assert prompts.get('物理') == '多用图示'
+
+
+# ── TestAnalysisThinking ──────────────────────────────────────────────
+
+class TestAnalysisThinking:
+    """User-level thinking mode toggle for analysis methods."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_thinking(self, app, users):
+        """Remove analysis_thinking setting before each test so default-value tests work cleanly."""
+        with app.app_context():
+            from database import get_db
+            db = get_db()
+            db.execute(
+                "DELETE FROM settings WHERE user_id = ? AND key = 'analysis_thinking'",
+                (users['a']['id'],),
+            )
+            db.commit()
+        yield
+
+    def test_default_thinking_enabled(self, app, users):
+        """Thinking defaults to True when no setting is stored."""
+        with app.app_context():
+            from models.settings import get_analysis_thinking
+            result = get_analysis_thinking(user_id=users['a']['id'])
+        assert result is True
+
+    def test_set_thinking_false(self, app, users):
+        with app.app_context():
+            from models.settings import set_setting, get_analysis_thinking
+            set_setting('analysis_thinking', 'false', user_id=users['a']['id'])
+            result = get_analysis_thinking(user_id=users['a']['id'])
+        assert result is False
+
+    def test_set_thinking_true(self, app, users):
+        with app.app_context():
+            from models.settings import set_setting, get_analysis_thinking
+            set_setting('analysis_thinking', 'true', user_id=users['a']['id'])
+            result = get_analysis_thinking(user_id=users['a']['id'])
+        assert result is True
+
+    def test_route_saves_thinking_off(self, app, users, client):
+        """POST without analysis_thinking checkbox saves 'false'."""
+        from conftest import login_as
+        login_as(client, users, 'a')
+
+        client.post('/settings', data={
+            'recognition_method': 'paddleocr_deepseek',
+            'analysis_method': 'kimi',
+            # analysis_thinking absent = unchecked
+        })
+
+        with app.app_context():
+            from models.settings import get_analysis_thinking
+            result = get_analysis_thinking(user_id=users['a']['id'])
+        assert result is False
+
+    def test_route_saves_thinking_on(self, app, users, client):
+        """POST with analysis_thinking=true saves 'true'."""
+        from conftest import login_as
+        login_as(client, users, 'a')
+
+        client.post('/settings', data={
+            'recognition_method': 'paddleocr_deepseek',
+            'analysis_method': 'kimi',
+            'analysis_thinking': 'true',
+        })
+
+        with app.app_context():
+            from models.settings import get_analysis_thinking
+            result = get_analysis_thinking(user_id=users['a']['id'])
+        assert result is True
+
+    def test_thinking_methods_constant(self):
+        """ANALYSIS_METHODS_WITH_THINKING only contains valid analysis method keys."""
+        from models.settings import ANALYSIS_METHODS, ANALYSIS_METHODS_WITH_THINKING
+        assert ANALYSIS_METHODS_WITH_THINKING.issubset(set(ANALYSIS_METHODS.keys()))

@@ -328,9 +328,9 @@ def _recognize_single_question(image_path):
 
 
 def _kimi_vision_post(system_prompt, image_path, user_message):
-    """POST a vision request to Kimi k2.6 and return the raw text response.
+    """POST a vision request to Kimi k3.0 and return the raw text response.
 
-    Kimi k2.6 constraints: must NOT set temperature/top_p/n/presence_penalty/
+    Kimi k3.0 constraints: must NOT set temperature/top_p/n/presence_penalty/
     frequency_penalty; thinking defaults to enabled so we explicitly disable it.
     """
     if not MOONSHOT_API_KEY:
@@ -365,7 +365,7 @@ def _kimi_vision_post(system_prompt, image_path, user_message):
 
 
 def _recognize_page_with_kimi(image_path, page_num, total_pages):
-    """Use Kimi k2.6 vision model to recognize questions on a page image."""
+    """Use Kimi k3.0 vision model to recognize questions on a page image."""
     raw_text = _kimi_vision_post(
         DOUBAO_VISION_PROMPT,
         image_path,
@@ -387,7 +387,7 @@ def _recognize_page_with_kimi(image_path, page_num, total_pages):
 
 
 def _recognize_single_question_kimi(image_path):
-    """Recognize a cropped question image using Kimi k2.6 vision API."""
+    """Recognize a cropped question image using Kimi k3.0 vision API."""
     raw_text = _kimi_vision_post(
         '你是一个高考题目识别助手。',
         image_path,

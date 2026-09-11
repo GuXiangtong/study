@@ -175,7 +175,11 @@ def _call_llm(system_prompt, user_prompt, api_key, api_url, model, thinking_enab
                 "messages": [{"role": "user", "content": user_prompt}],
                 "temperature": 0.7,
                 "max_tokens": 16384,
-                "thinking": {"type": "disabled"},
+                "thinking": (
+                    {"type": "enabled", "budget_tokens": 8000}
+                    if (not is_anthropic and thinking_enabled)
+                    else {"type": "disabled"}
+                ),
             }
             resp = session.post(api_url, headers=headers, json=body, timeout=120)
             log(f"HTTP {resp.status_code}")

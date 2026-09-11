@@ -44,19 +44,21 @@
                 </div>
             </label>
             {% endfor %}
-        </div>
 
-        <div class="card" id="thinking-toggle-card" style="display:none;">
-            <h2>Thinking 模式</h2>
-            <p class="form-hint" style="margin-bottom:12px;">
-                开启后模型会先进行内部推理再输出答案，分析质量更高，但耗时和费用也会增加。
-            </p>
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;">
-                <input type="checkbox" name="analysis_thinking" value="true"
-                       {% if current.get('analysis_thinking', 'true') != 'false' %}checked{% endif %}
-                       style="width:16px;height:16px;">
-                <span>启用 Thinking 模式（深度推理，质量更高但速度较慢）</span>
-            </label>
+            <div id="thinking-toggle-card" style="display:none;margin-top:12px;padding:12px 16px;background:var(--bg-subtle,#f8f9fa);border:1px solid var(--border);border-radius:8px;">
+                <p style="margin:0 0 8px;font-size:0.85rem;color:var(--text-muted);">
+                    <strong>题目分析 · Thinking 模式</strong>
+                </p>
+                <p class="form-hint" style="margin:0 0 10px;">
+                    开启后模型会先进行内部推理再输出答案，分析质量更高，但耗时和费用也会增加。
+                </p>
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0;">
+                    <input type="checkbox" name="analysis_thinking" value="true"
+                           {% if current.get('analysis_thinking', 'true') != 'false' %}checked{% endif %}
+                           style="width:16px;height:16px;">
+                    <span>启用 Thinking 模式（深度推理，质量更高但速度较慢）</span>
+                </label>
+            </div>
         </div>
     </div>
 

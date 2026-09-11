@@ -35,9 +35,10 @@ DEEPSEEK_API_KEY = _apikeys.get('DEEPSEEK_API_KEY', os.environ.get('DEEPSEEK_API
 DOUBAO_API_KEY = _apikeys.get('DOUBAO_API_KEY', os.environ.get('DOUBAO_API_KEY', ''))
 MOONSHOT_API_KEY = _apikeys.get('MOONSHOT_API_KEY', os.environ.get('MOONSHOT_API_KEY', ''))
 
-# DeepSeek (Anthropic-compatible endpoint)
+# DeepSeek — Anthropic-compatible endpoint (text analysis) + OpenAI-compatible (vision)
 DEEPSEEK_API_URL = 'https://api.deepseek.com/anthropic/v1/messages'
-DEEPSEEK_MODEL = 'deepseek-v4-pro'
+DEEPSEEK_VISION_API_URL = 'https://api.deepseek.com/v1/chat/completions'
+DEEPSEEK_MODEL = 'deepseek-flash'
 
 # Anthropic (Claude) — supports proxy via ANTHROPIC_BASE_URL
 ANTHROPIC_API_KEY = _apikeys.get('ANTHROPIC_API_KEY', os.environ.get('ANTHROPIC_API_KEY', ''))

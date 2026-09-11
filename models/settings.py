@@ -5,7 +5,7 @@ import json
 from database import get_db
 
 RECOGNITION_METHODS = {
-    'paddleocr_deepseek': 'PaddleOCR + DeepSeek',
+    'paddleocr_deepseek': 'DeepSeek Flash 视觉识别',
     'doubao_seed': 'Doubao Seed',
     'kimi': 'Kimi k3.0',
 }
@@ -18,7 +18,7 @@ ANALYSIS_METHODS = {
 }
 
 # Analysis methods that expose a thinking-mode toggle to the user
-ANALYSIS_METHODS_WITH_THINKING = {'kimi', 'doubao_seed'}
+ANALYSIS_METHODS_WITH_THINKING = {'kimi', 'doubao_seed', 'deepseek'}
 
 # Default: all models enabled
 _ALL_RECOGNITION_KEYS = list(RECOGNITION_METHODS.keys())

@@ -1239,38 +1239,126 @@ def process_paper(file, task_id, user_id=None):
     return result_data
 
 
-def prepare_paper(file, task_id, user_id=None):
-    """Save uploaded file and render page images. No OCR or question detection.
+def _normalize_page_image(src_path, dest_path):
+    """Copy a page image to dest_path as PNG, converting format if necessary."""
+    if os.path.splitext(src_path)[1].lower() == '.png':
+        shutil.copy(src_path, dest_path)
+        return
+    img = Image.open(src_path)
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    img.save(dest_path, 'PNG')
+
+
+def _merge_images_vertically(image_paths, dest_path, bg=(255, 255, 255)):
+    """Concatenate images top-to-bottom into a single PNG at dest_path.
+
+    All images are scaled to the widest image's width (preserving aspect ratio)
+    so a question spanning a page break lines up in one continuous page.
+    """
+    imgs = []
+    for p in image_paths:
+        img = Image.open(p)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+        imgs.append(img)
+
+    target_w = max(img.width for img in imgs)
+    scaled = []
+    for img in imgs:
+        if img.width != target_w:
+            new_h = max(1, round(img.height * target_w / img.width))
+            img = img.resize((target_w, new_h), Image.LANCZOS)
+        scaled.append(img)
+
+    total_h = sum(img.height for img in scaled)
+    canvas = Image.new('RGB', (target_w, total_h), bg)
+    y = 0
+    for img in scaled:
+        canvas.paste(img, (0, y))
+        y += img.height
+    canvas.save(dest_path, 'PNG')
+
+
+def prepare_paper(files, task_id, user_id=None, merge=False):
+    """Save uploaded file(s) and render page images. No OCR or question detection.
 
     This is the entry point for the manual-selection workflow. After calling this,
     the user manually draws bounding boxes for each question on the review page,
     then calls recognize_question_images() to extract text content.
+
+    Accepts one or more uploaded files (images and/or PDFs). When ``merge`` is
+    True, all rendered source pages are concatenated vertically into a single
+    page so a question that spans a page break can be selected in one box. When
+    False, each image (and each PDF page) becomes its own page.
+
+    Args:
+        files: A single FileStorage or a list of them.
+        task_id: The processing task ID.
+        user_id: Owner of the task.
+        merge: Whether to merge all pages into one.
     """
+    if not isinstance(files, (list, tuple)):
+        files = [files]
+    files = [f for f in files if f and f.filename]
+
     task_dir = os.path.join(PAPER_TEMP_DIR, task_id)
     pages_dir = os.path.join(task_dir, 'pages')
     questions_dir = os.path.join(task_dir, 'questions')
     os.makedirs(pages_dir, exist_ok=True)
     os.makedirs(questions_dir, exist_ok=True)
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    original_path = os.path.join(task_dir, f'original{ext}')
-    file.save(original_path)
+    # ── Render every uploaded file into ordered source page-image paths ──
+    source_images = []
+    for idx, f in enumerate(files):
+        ext = os.path.splitext(f.filename)[1].lower()
+        original_path = os.path.join(task_dir, f'original_{idx + 1:03d}{ext}')
+        f.save(original_path)
+        if ext == '.pdf':
+            # Isolated subdir per file so `page_001.png` names never collide.
+            src_dir = os.path.join(task_dir, f'_src_{idx + 1:03d}')
+            os.makedirs(src_dir, exist_ok=True)
+            try:
+                pages = _pdf_to_images(original_path, src_dir)
+            except Exception:
+                raise ValueError(f'文件「{f.filename}」不是有效的 PDF，无法解析，请检查后重新上传。')
+            if not pages:
+                raise ValueError(f'文件「{f.filename}」是空 PDF（没有页面）。')
+            source_images.extend(pages)
+        else:
+            try:
+                with Image.open(original_path) as _probe:
+                    _probe.verify()
+            except Exception:
+                raise ValueError(f'文件「{f.filename}」不是有效的图片，无法解析，请检查后重新上传。')
+            source_images.append(original_path)
 
-    if ext == '.pdf':
-        page_images = _pdf_to_images(original_path, pages_dir)
+    # ── Build final page images (always PNG, page_NNN.png) ──
+    if merge and len(source_images) > 1:
+        merged_path = os.path.join(pages_dir, 'page_001.png')
+        _merge_images_vertically(source_images, merged_path)
+        page_image_names = ['page_001.png']
+        merged = True
     else:
-        dest = os.path.join(pages_dir, f'page_001{ext}')
-        shutil.copy(original_path, dest)
-        page_images = [dest]
+        page_image_names = []
+        for i, src in enumerate(source_images):
+            name = f'page_{i + 1:03d}.png'
+            _normalize_page_image(src, os.path.join(pages_dir, name))
+            page_image_names.append(name)
+        merged = False
 
-    page_image_names = [os.path.basename(p) for p in page_images]
+    if len(files) > 1:
+        original_filename = f'{files[0].filename} 等 {len(files)} 个文件'
+    else:
+        original_filename = files[0].filename if files else ''
 
     result_data = {
         'task_id': task_id,
         'user_id': user_id,
-        'original_filename': file.filename,
-        'page_count': len(page_images),
+        'original_filename': original_filename,
+        'page_count': len(page_image_names),
         'page_image_names': page_image_names,
+        'merged': merged,
         'questions': [],
     }
     with open(os.path.join(task_dir, 'result.json'), 'w', encoding='utf-8') as f:

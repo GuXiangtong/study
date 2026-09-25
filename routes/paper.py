@@ -26,39 +26,58 @@ def upload():
     if request.method == 'GET':
         subjects = get_all_subjects()
         exams = get_all_exams(user_id)
-        return render_template('paper/upload.html', subjects=subjects, exams=exams)
+        # Values carried back after a failed submit (via query args) so the
+        # user's subject/exam selections are preserved.
+        return render_template(
+            'paper/upload.html', subjects=subjects, exams=exams,
+            prev_subject_id=request.args.get('subject_id', type=int),
+            prev_exam_id=request.args.get('exam_id', type=int),
+            prev_exam_name=request.args.get('exam_name', ''),
+            prev_exam_date=request.args.get('exam_date', ''),
+        )
 
     subject_id = request.form.get('subject_id', type=int)
     exam_name = request.form.get('exam_name', '').strip()
     exam_id = request.form.get('exam_id', type=int)
     exam_date = request.form.get('exam_date') or None
-    file = request.files.get('paper_file')
+    files = [f for f in request.files.getlist('paper_file') if f and f.filename]
+    merge = bool(request.form.get('merge_images'))
+
+    def _back():
+        """Redirect to the upload form, preserving the user's selections."""
+        return redirect(url_for(
+            'paper.upload', subject_id=subject_id or None,
+            exam_id=exam_id or None, exam_name=exam_name or None,
+            exam_date=exam_date or None,
+        ))
 
     if not subject_id:
         flash('请选择学科', 'error')
-        return redirect(url_for('paper.upload'))
-    if not file or not file.filename:
+        return _back()
+    if not files:
         flash('请选择要上传的试卷文件', 'error')
-        return redirect(url_for('paper.upload'))
+        return _back()
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in {'.pdf', '.jpg', '.jpeg', '.png'}:
-        flash('不支持的文件格式，请上传 PDF 或图片文件（jpg/png）', 'error')
-        return redirect(url_for('paper.upload'))
+    allowed = {'.pdf', '.jpg', '.jpeg', '.png'}
+    for f in files:
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in allowed:
+            flash('不支持的文件格式，请上传 PDF 或图片文件（jpg/png）', 'error')
+            return _back()
 
     if not exam_id and exam_name:
         exam = create_exam(subject_id, exam_name, exam_date, user_id=user_id)
         exam_id = exam['id'] if exam else None
     if not exam_id:
         flash('请选择或创建考试', 'error')
-        return redirect(url_for('paper.upload'))
+        return _back()
 
     task_id = str(uuid.uuid4())
     try:
-        result = prepare_paper(file, task_id, user_id=user_id)
+        result = prepare_paper(files, task_id, user_id=user_id, merge=merge)
     except Exception as e:
         flash(f'试卷处理失败：{e}', 'error')
-        return redirect(url_for('paper.upload'))
+        return _back()
 
     result['subject_id'] = subject_id
     result['exam_id'] = exam_id

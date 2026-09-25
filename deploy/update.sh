@@ -83,7 +83,8 @@ sudo systemctl restart $SERVICE_NAME
 
 # 等待2秒检查状态
 sleep 2
-if sudo systemctl is-active --quiet $SERVICE_NAME; then
+# is-active 查询无需 root；用 sudo 在非交互 SSH（无 TTY）下会因取不到密码误判失败
+if systemctl is-active --quiet $SERVICE_NAME; then
     echo_info "服务重启成功 ✓"
 else
     echo_error "服务重启失败！查看日志："
@@ -96,5 +97,5 @@ echo "=============================================="
 echo -e "${GREEN}  更新完成！${NC}"
 echo "=============================================="
 echo "  当前版本: $(git log --oneline -1)"
-echo "  服务状态: $(sudo systemctl is-active $SERVICE_NAME)"
+echo "  服务状态: $(systemctl is-active $SERVICE_NAME)"
 echo "=============================================="
